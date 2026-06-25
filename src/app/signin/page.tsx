@@ -109,11 +109,13 @@ function SignInForm() {
           Firebase not configured
         </h1>
         <p className="mt-3 text-sm text-gray-400">
-          Firebase client credentials are missing from the deployed build. Add{" "}
+          Firebase client credentials are missing. Add{" "}
           <code className="text-gold-400">NEXT_PUBLIC_FIREBASE_*</code> to{" "}
           <code className="text-gold-400">.env.local</code> locally, or under{" "}
-          <strong className="text-gray-300">Cloudflare → Build → Build variables</strong>{" "}
-          (not runtime only), then redeploy. See{" "}
+          <strong className="text-gray-300">
+            Cloudflare → Variables and secrets
+          </strong>{" "}
+          (runtime), then redeploy. See{" "}
           <code className="text-gold-400">docs/FIREBASE-SETUP.md</code>.
         </p>
       </div>

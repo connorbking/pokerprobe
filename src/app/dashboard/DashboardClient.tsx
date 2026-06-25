@@ -4,7 +4,7 @@ import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Suspense, useCallback, useEffect, useState } from "react";
 import type { AuthUser } from "@/lib/firebase/verify-token";
-import { auth } from "@/lib/firebase/client";
+import { getFirebaseAuth } from "@/lib/firebase/client";
 import type { Server } from "@/lib/firestore-server";
 import { siteConfig } from "@/lib/config";
 import {
@@ -208,6 +208,7 @@ function DashboardContent({ user }: { user: AuthUser }) {
     setServersError(null);
 
     try {
+      const auth = getFirebaseAuth();
       const headers: HeadersInit = {};
       if (auth?.currentUser) {
         const token = await auth.currentUser.getIdToken();

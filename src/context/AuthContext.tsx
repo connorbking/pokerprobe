@@ -17,8 +17,9 @@ import {
   useMemo,
   useState,
 } from "react";
-import { auth } from "@/lib/firebase/client";
-import { isFirebaseConfigured } from "@/lib/firebase/config";
+import type { FirebasePublicConfig } from "@/lib/public-config";
+import { isFirebaseConfigConfigured } from "@/lib/public-config";
+import { getFirebaseAuth, initFirebaseClient } from "@/lib/firebase/client";
 import type { AuthUser } from "@/lib/firebase/verify-token";
 
 interface AuthContextValue {
@@ -100,18 +101,25 @@ async function fetchSessionUser(): Promise<AuthUser | null> {
 }
 
 function assertAuth() {
-  if (!auth) {
+  const firebaseAuth = getFirebaseAuth();
+  if (!firebaseAuth) {
     throw new Error(
-      "Firebase is not configured. Add NEXT_PUBLIC_FIREBASE_* env variables."
+      "Firebase is not configured. Add Firebase env variables to Cloudflare runtime."
     );
   }
-  return auth;
+  return firebaseAuth;
 }
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
+export function AuthProvider({
+  firebaseConfig,
+  children,
+}: {
+  firebaseConfig: FirebasePublicConfig;
+  children: React.ReactNode;
+}) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
-  const configured = isFirebaseConfigured();
+  const configured = isFirebaseConfigConfigured(firebaseConfig);
 
   useEffect(() => {
     let cancelled = false;
@@ -122,12 +130,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(sessionUser);
       }
 
-      if (!auth) {
+      const firebaseAuth = configured
+        ? initFirebaseClient(firebaseConfig)
+        : null;
+
+      if (!firebaseAuth) {
         if (!cancelled) setLoading(false);
         return;
       }
 
-      const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      const unsubscribe = onAuthStateChanged(firebaseAuth, (firebaseUser) => {
         if (cancelled) return;
 
         if (firebaseUser) {
@@ -159,7 +171,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       cancelled = true;
       unsubscribe?.();
     };
-  }, []);
+  }, [
+    configured,
+    firebaseConfig.apiKey,
+    firebaseConfig.authDomain,
+    firebaseConfig.projectId,
+    firebaseConfig.appId,
+  ]);
 
   const signInWithGoogle = useCallback(async () => {
     const firebaseAuth = assertAuth();
@@ -184,8 +202,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signOut = useCallback(async () => {
-    if (auth) {
-      await firebaseSignOut(auth);
+    const firebaseAuth = getFirebaseAuth();
+    if (firebaseAuth) {
+      await firebaseSignOut(firebaseAuth);
     }
     await clearSession();
     setUser(null);

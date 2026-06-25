@@ -13,12 +13,3 @@ export function getStripePromise(publishableKey: string | undefined) {
   }
   return promise;
 }
-
-/** Read publishable key on the server (runtime env on Cloudflare Workers). */
-export function getStripePublishableKey(): string {
-  return (
-    process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY?.trim() ??
-    process.env.STRIPE_PUBLISHABLE_KEY?.trim() ??
-    ""
-  );
-}

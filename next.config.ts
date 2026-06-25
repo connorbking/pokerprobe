@@ -1,12 +1,6 @@
 import type { NextConfig } from "next";
 
-const firebaseProjectId =
-  process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID ??
-  process.env.FIREBASE_PROJECT_ID;
-
-const firebaseHostingOrigin = firebaseProjectId
-  ? `https://${firebaseProjectId}.firebaseapp.com`
-  : null;
+const firebaseHostingOrigin = "https://pokerprobe-4c8f3.firebaseapp.com";
 
 const nextConfig: NextConfig = {
   images: {
@@ -19,8 +13,6 @@ const nextConfig: NextConfig = {
     ],
   },
   async rewrites() {
-    if (!firebaseHostingOrigin) return [];
-
     return [
       {
         source: "/__/auth/:path*",

@@ -1,5 +1,5 @@
 import { createRemoteJWKSet, jwtVerify } from "jose";
-import { firebaseConfig } from "./config";
+import { getFirebaseProjectId } from "@/lib/runtime-config";
 
 export interface AuthUser {
   uid: string;
@@ -17,7 +17,7 @@ const JWKS = createRemoteJWKSet(
 export async function verifyFirebaseToken(
   token: string
 ): Promise<AuthUser | null> {
-  const projectId = firebaseConfig.projectId;
+  const projectId = getFirebaseProjectId();
   if (!projectId) return null;
 
   try {

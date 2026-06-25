@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
 import { STRIPE_PRICE_IDS, getStripe } from "@/lib/stripe";
-import { getStripePublishableKey } from "@/lib/stripe-client";
+import { getPublicRuntimeConfig } from "@/lib/runtime-config";
 
 export async function GET() {
   const hasSecretKey = Boolean(process.env.STRIPE_SECRET_KEY?.trim());
-  const hasPublishableKey = Boolean(getStripePublishableKey());
+  const hasPublishableKey = Boolean(
+    getPublicRuntimeConfig().stripePublishableKey
+  );
 
   let secretKeyWorks = false;
   let priceLookupOk = false;

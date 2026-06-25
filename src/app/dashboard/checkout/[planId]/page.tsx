@@ -3,7 +3,6 @@ import { redirect } from "next/navigation";
 import { getServerUser } from "@/lib/firebase/server-auth";
 import { getPlanById } from "@/lib/config";
 import { CheckoutClient } from "./CheckoutClient";
-import { getStripePublishableKey } from "@/lib/stripe-client";
 
 export const metadata: Metadata = {
   title: "Checkout",
@@ -28,10 +27,7 @@ export default async function CheckoutPage({
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-12 sm:px-6">
-      <CheckoutClient
-        planId={planId}
-        publishableKey={getStripePublishableKey()}
-      />
+      <CheckoutClient planId={planId} />
     </div>
   );
 }

@@ -44,17 +44,18 @@ This builds with OpenNext and deploys the Worker to Cloudflare.
 
 ### Environment variables
 
-Set these in **Workers → pokerprobe → Settings → Variables and Secrets**:
+Set these in **Workers → pokerprobe → Settings → Variables and secrets** (runtime):
 
 | Variable | Notes |
 |----------|-------|
-| `NEXT_PUBLIC_FIREBASE_*` | All 6 Firebase web config values |
-| `STRIPE_SECRET_KEY` | Restricted key recommended |
-| `STRIPE_WEBHOOK_SECRET` | From Stripe webhook config |
-| `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | Publishable key |
-| `STRIPE_PRICE_STARTER` | Stripe price ID |
-| `STRIPE_PRICE_PRO` | Stripe price ID |
-| `STRIPE_PRICE_ELITE` | Stripe price ID |
+| `NEXT_PUBLIC_FIREBASE_*` | All Firebase web config values |
+| `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | Stripe publishable key |
+| `FIREBASE_PROJECT_ID` | `pokerprobe-4c8f3` |
+| `GOOGLE_SERVICE_ACCOUNT_JSON_BASE64` | Firestore service account (Secret) |
+| `STRIPE_SECRET_KEY` | Secret |
+| `STRIPE_WEBHOOK_SECRET` | Secret |
+
+Stripe price IDs for Study/Solver/Farm are hardcoded in the repo. Verify config: `/api/health/config`, `/api/health/stripe`, `/api/health/storage`.
 
 See **[docs/FIREBASE-SETUP.md](docs/FIREBASE-SETUP.md)** for Firebase provider configuration.
 

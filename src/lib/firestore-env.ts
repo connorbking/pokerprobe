@@ -1,3 +1,5 @@
+import { getFirebaseProjectId } from "./runtime-config";
+
 export interface FirestoreConfig {
   projectId: string;
   serviceAccountJson: string;
@@ -7,10 +9,8 @@ export interface FirestoreConfigStatus {
   configured: boolean;
   hasProjectId: boolean;
   hasServiceAccount: boolean;
-  /** Raw env var is non-empty (before JSON validation). */
   serviceAccountEnvPresent: boolean;
   serviceAccountBase64EnvPresent: boolean;
-  /** Raw env present but JSON/base64 parsing failed. */
   invalidServiceAccountJson: boolean;
   missing: string[];
   hint?: string;
@@ -68,9 +68,7 @@ function serviceAccountHint(
 }
 
 export function getFirestoreConfigStatus(): FirestoreConfigStatus {
-  const projectId =
-    process.env.FIREBASE_PROJECT_ID ??
-    process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
+  const projectId = getFirebaseProjectId();
 
   const rawJson = process.env.GOOGLE_SERVICE_ACCOUNT_JSON?.trim() ?? "";
   const rawBase64 = process.env.GOOGLE_SERVICE_ACCOUNT_JSON_BASE64?.trim() ?? "";
@@ -121,9 +119,7 @@ export function getFirestoreConfig(): FirestoreConfig {
     throw new Error(`Firestore is not configured. Missing: ${detail}.`);
   }
 
-  const projectId =
-    process.env.FIREBASE_PROJECT_ID ??
-    process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID!;
+  const projectId = getFirebaseProjectId();
   const serviceAccountJson =
     parseServiceAccountJson(process.env.GOOGLE_SERVICE_ACCOUNT_JSON) ??
     parseServiceAccountJson(process.env.GOOGLE_SERVICE_ACCOUNT_JSON_BASE64)!;

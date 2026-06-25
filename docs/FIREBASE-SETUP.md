@@ -18,7 +18,7 @@ NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=...
 NEXT_PUBLIC_FIREBASE_APP_ID=...
 ```
 
-Set the same variables in **Cloudflare Workers → Build → Build variables** (required for `NEXT_PUBLIC_*`) and **Variables and Secrets** for production.
+Set the same variables in **Cloudflare Workers → Settings → Variables and secrets** (runtime). The app reads all config from runtime env at request time — **Build variables are not required**.
 
 ## 2. Firestore (server storage — dashboard & webhooks)
 
@@ -49,8 +49,6 @@ Server-only vars must be available to the **deployed Worker at runtime**, not ju
 | `GOOGLE_SERVICE_ACCOUNT_JSON_BASE64` | Secret | Run `node scripts/encode-service-account.mjs path/to/key.json` and paste the output |
 
 `wrangler.jsonc` declares these binding names via `vars` / `secrets.required`. Deploy uses `wrangler deploy --keep-vars` so dashboard values are not wiped. **Do not** put secret names in the `vars` block with empty strings — that overwrites dashboard secrets on deploy.
-
-Also duplicate build-time vars in **Build variables and secrets** so `NEXT_PUBLIC_*` are inlined during `npm run cf:build`.
 
 After saving secrets, redeploy and check `/api/health/storage` — both `hasProjectId` and `hasServiceAccount` should be `true`.
 

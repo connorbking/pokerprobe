@@ -1,15 +1,30 @@
 "use client";
 
-import { initializeApp, getApps, getApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
-import { firebaseConfig, isFirebaseConfigured } from "./config";
+import { initializeApp, getApps, getApp, type FirebaseApp } from "firebase/app";
+import { getAuth, type Auth } from "firebase/auth";
+import type { FirebasePublicConfig } from "@/lib/public-config";
+import { isFirebaseConfigConfigured } from "@/lib/public-config";
 
-function createFirebaseApp() {
-  if (!isFirebaseConfigured()) {
+let firebaseApp: FirebaseApp | null = null;
+let firebaseAuth: Auth | null = null;
+
+export function initFirebaseClient(
+  config: FirebasePublicConfig
+): Auth | null {
+  if (!isFirebaseConfigConfigured(config)) {
+    firebaseApp = null;
+    firebaseAuth = null;
     return null;
   }
-  return getApps().length ? getApp() : initializeApp(firebaseConfig);
+
+  if (!firebaseApp) {
+    firebaseApp = getApps().length ? getApp() : initializeApp(config);
+    firebaseAuth = getAuth(firebaseApp);
+  }
+
+  return firebaseAuth;
 }
 
-export const firebaseApp = createFirebaseApp();
-export const auth = firebaseApp ? getAuth(firebaseApp) : null;
+export function getFirebaseAuth(): Auth | null {
+  return firebaseAuth;
+}

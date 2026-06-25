@@ -6,16 +6,12 @@ import {
   EmbeddedCheckout,
   EmbeddedCheckoutProvider,
 } from "@stripe/react-stripe-js";
+import { usePublicConfig } from "@/context/PublicConfigContext";
 import { getStripePromise } from "@/lib/stripe-client";
 import { getPlanById } from "@/lib/config";
 
-export function CheckoutClient({
-  planId,
-  publishableKey,
-}: {
-  planId: string;
-  publishableKey: string;
-}) {
+export function CheckoutClient({ planId }: { planId: string }) {
+  const { stripePublishableKey } = usePublicConfig();
   const plan = getPlanById(planId);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -57,7 +53,7 @@ export function CheckoutClient({
     };
   }, [planId]);
 
-  const stripePromise = getStripePromise(publishableKey);
+  const stripePromise = getStripePromise(stripePublishableKey);
 
   if (!plan) {
     return (

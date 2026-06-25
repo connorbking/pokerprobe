@@ -3,6 +3,7 @@ import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { Providers } from "@/components/Providers";
 import { siteConfig } from "@/lib/config";
+import { getPublicRuntimeConfig } from "@/lib/runtime-config";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -26,10 +27,12 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const publicConfig = getPublicRuntimeConfig();
+
   return (
     <html lang="en">
       <body className="min-h-screen antialiased felt-texture suit-pattern">
-        <Providers>
+        <Providers config={publicConfig}>
           <Header />
           <main>{children}</main>
           <Footer />
