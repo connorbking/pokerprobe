@@ -1,6 +1,20 @@
 import { NextResponse } from "next/server";
+import Stripe from "stripe";
 import { getServerUserFromRequest } from "@/lib/firebase/server-auth";
 import { getStripe, getPriceId } from "@/lib/stripe";
+
+function checkoutErrorMessage(err: unknown): string {
+  if (err instanceof Stripe.errors.StripeError) {
+    return err.message;
+  }
+  if (err instanceof Error) {
+    if (err.message === "STRIPE_SECRET_KEY is not set") {
+      return "Stripe secret key is not configured on the server.";
+    }
+    return err.message;
+  }
+  return "Failed to create checkout session";
+}
 
 export async function POST(request: Request) {
   try {
@@ -73,7 +87,7 @@ export async function POST(request: Request) {
   } catch (err) {
     console.error("Checkout error:", err);
     return NextResponse.json(
-      { error: "Failed to create checkout session" },
+      { error: checkoutErrorMessage(err) },
       { status: 500 }
     );
   }

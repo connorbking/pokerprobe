@@ -23,6 +23,7 @@ export function CheckoutClient({ planId }: { planId: string }) {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ planId }),
+          credentials: "same-origin",
         });
         const data = (await res.json()) as {
           clientSecret?: string;
