@@ -46,8 +46,17 @@ export async function POST(request: Request) {
       ui_mode: "embedded",
       line_items: [{ price: priceId, quantity: 1 }],
       return_url: `${origin}/dashboard?success=true&session_id={CHECKOUT_SESSION_ID}`,
+      metadata: {
+        userId: user.uid,
+        userEmail: user.email,
+        planId: priceId,
+      },
       subscription_data: {
-        metadata: { planId, userId: user.uid },
+        metadata: {
+          userId: user.uid,
+          userEmail: user.email,
+          planId: priceId,
+        },
       },
     });
 

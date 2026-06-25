@@ -8,10 +8,12 @@
     "start": "next start",
     "lint": "next lint",
     "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
+    "cf:build": "opennextjs-cloudflare build",
     "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
     "upload": "opennextjs-cloudflare build && opennextjs-cloudflare upload",
     "cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts",
-    "setup-stripe": "node scripts/setup-stripe-products.mjs"
+    "setup-stripe": "node scripts/setup-stripe-products.mjs",
+    "test-firestore": "node --experimental-strip-types scripts/test-firestore.mjs"
   },
   "dependencies": {
     "@stripe/react-stripe-js": "^6.6.0",
@@ -24,7 +26,7 @@
     "stripe": "^18.2.1"
   },
   "devDependencies": {
-    "@opennextjs/cloudflare": "^1.14.0",
+    "@opennextjs/cloudflare": "^1.20.0",
     "@tailwindcss/postcss": "^4.1.8",
     "@types/node": "^22.15.29",
     "@types/react": "^19.1.6",

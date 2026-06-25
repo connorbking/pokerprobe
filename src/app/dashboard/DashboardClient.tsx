@@ -2,26 +2,36 @@
 
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { Suspense } from "react";
+import { Suspense, useCallback, useEffect, useState } from "react";
 import type { AuthUser } from "@/lib/firebase/verify-token";
+import { auth } from "@/lib/firebase/client";
+import type { Server } from "@/lib/firestore-server";
 import { siteConfig } from "@/lib/config";
 import {
+  getPlanLabel,
   getServerDisplayStatus,
-  type CustomerServer,
+  isVisibleServerStatus,
 } from "@/lib/servers";
 
-function StatusDot({ color }: { color: "gray" | "yellow" | "green" | "red" }) {
+function StatusDot({
+  color,
+}: {
+  color: "gray" | "yellow" | "green" | "red" | "blue";
+}) {
   const colors = {
     gray: "bg-gray-500",
     yellow: "bg-yellow-500",
     green: "bg-green-500",
     red: "bg-red-500",
+    blue: "bg-blue-500",
   };
 
   return (
     <span className="relative flex h-2.5 w-2.5">
-      {color === "green" && (
-        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-75" />
+      {(color === "green" || color === "blue") && (
+        <span
+          className={`absolute inline-flex h-full w-full animate-ping rounded-full opacity-75 ${colors[color]}`}
+        />
       )}
       <span
         className={`relative inline-flex h-2.5 w-2.5 rounded-full ${colors[color]}`}
@@ -30,9 +40,26 @@ function StatusDot({ color }: { color: "gray" | "yellow" | "green" | "red" }) {
   );
 }
 
-function ServerTile({ server }: { server: CustomerServer }) {
+function Spinner() {
+  return (
+    <span
+      className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-gold-400/30 border-t-gold-400"
+      aria-hidden="true"
+    />
+  );
+}
+
+function ServerTile({
+  server,
+  onManageBilling,
+}: {
+  server: Server;
+  onManageBilling: () => void;
+}) {
   const displayStatus = getServerDisplayStatus(server);
-  const title = server.label ?? `Dedicated Server · ${server.plan ?? "Standard"}`;
+  const title = server.label || `${getPlanLabel(server.plan)} server`;
+  const isSettingUp =
+    server.status === "pending" || server.status === "provisioning";
 
   return (
     <div className="card-glow w-full rounded-xl border border-white/10 bg-felt-800/50 p-6 sm:p-8">
@@ -42,56 +69,94 @@ function ServerTile({ server }: { server: CustomerServer }) {
           <div className="mt-2 flex items-center gap-2">
             <StatusDot color={displayStatus.color} />
             <span className="text-sm text-gray-300">{displayStatus.label}</span>
+            {isSettingUp && <Spinner />}
           </div>
         </div>
-        {server.plan && (
-          <span className="inline-flex w-fit rounded-full border border-gold-400/30 bg-gold-400/10 px-3 py-1 text-xs font-medium text-gold-400">
-            {server.plan} plan
-          </span>
-        )}
+        <span className="inline-flex w-fit rounded-full border border-gold-400/30 bg-gold-400/10 px-3 py-1 text-xs font-medium text-gold-400">
+          {getPlanLabel(server.plan)} plan
+        </span>
       </div>
 
-      {server.status === "active" && server.host && (
-        <dl className="mt-6 grid gap-3 border-t border-white/5 pt-6 sm:grid-cols-3">
-          <div>
-            <dt className="text-xs uppercase tracking-wide text-gray-500">
-              Host
-            </dt>
-            <dd className="mt-1 font-mono text-sm text-gray-200">
-              {server.host}
-            </dd>
-          </div>
-          {server.username && (
-            <div>
-              <dt className="text-xs uppercase tracking-wide text-gray-500">
-                Username
-              </dt>
-              <dd className="mt-1 font-mono text-sm text-gray-200">
-                {server.username}
-              </dd>
-            </div>
-          )}
-          {server.provisionedAt && (
-            <div>
-              <dt className="text-xs uppercase tracking-wide text-gray-500">
-                Provisioned
-              </dt>
-              <dd className="mt-1 text-sm text-gray-200">
-                {server.provisionedAt}
-              </dd>
-            </div>
-          )}
-        </dl>
+      {isSettingUp && (
+        <p className="mt-4 text-sm text-gray-400">
+          Setting up your server… {siteConfig.provisioningNote}
+        </p>
       )}
 
-      {server.status === "pending" && (
-        <p className="mt-4 text-sm text-gray-400">{siteConfig.provisioningNote}</p>
+      {server.status === "suspended" && (
+        <div className="mt-4 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+          <p>Your subscription payment is past due. Update billing to restore access.</p>
+          <button
+            type="button"
+            onClick={onManageBilling}
+            className="mt-2 font-medium text-gold-400 underline hover:text-gold-300"
+          >
+            Manage billing
+          </button>
+        </div>
       )}
 
       {server.status === "active" && (
-        <p className="mt-4 text-xs text-gray-500">
-          RDP password was sent to your email when this server was provisioned.
-        </p>
+        <>
+          <dl className="mt-6 grid gap-3 border-t border-white/5 pt-6 sm:grid-cols-2 lg:grid-cols-3">
+            {server.hostname && (
+              <div>
+                <dt className="text-xs uppercase tracking-wide text-gray-500">
+                  Hostname
+                </dt>
+                <dd className="mt-1 font-mono text-sm text-gray-200">
+                  {server.hostname}
+                </dd>
+              </div>
+            )}
+            {server.ip && (
+              <div>
+                <dt className="text-xs uppercase tracking-wide text-gray-500">
+                  IP
+                </dt>
+                <dd className="mt-1 font-mono text-sm text-gray-200">
+                  {server.ip}
+                </dd>
+              </div>
+            )}
+            {server.username && (
+              <div>
+                <dt className="text-xs uppercase tracking-wide text-gray-500">
+                  Username
+                </dt>
+                <dd className="mt-1 font-mono text-sm text-gray-200">
+                  {server.username}
+                </dd>
+              </div>
+            )}
+            {server.provisionedAt && (
+              <div>
+                <dt className="text-xs uppercase tracking-wide text-gray-500">
+                  Provisioned
+                </dt>
+                <dd className="mt-1 text-sm text-gray-200">
+                  {new Date(server.provisionedAt).toLocaleDateString()}
+                </dd>
+              </div>
+            )}
+          </dl>
+
+          {server.guacamoleUrl && (
+            <a
+              href={server.guacamoleUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-6 inline-flex items-center gap-2 rounded-lg bg-gold-500 px-5 py-2.5 text-sm font-semibold text-felt-950 transition hover:bg-gold-400"
+            >
+              Connect
+            </a>
+          )}
+
+          <p className="mt-4 text-xs text-gray-500">
+            Credentials were sent to {server.userEmail} when this server was
+            provisioned.
+          </p>
+        </>
       )}
     </div>
   );
@@ -129,18 +194,53 @@ function NoServersMarketing() {
   );
 }
 
-function DashboardContent({
-  user,
-  servers,
-}: {
-  user: AuthUser;
-  servers: CustomerServer[];
-}) {
+function DashboardContent({ user }: { user: AuthUser }) {
   const searchParams = useSearchParams();
   const success = searchParams.get("success");
   const canceled = searchParams.get("canceled");
 
-  const visibleServers = servers.filter((s) => s.status !== "suspended");
+  const [servers, setServers] = useState<Server[]>([]);
+  const [loadingServers, setLoadingServers] = useState(true);
+  const [serversError, setServersError] = useState<string | null>(null);
+
+  const loadServers = useCallback(async () => {
+    setLoadingServers(true);
+    setServersError(null);
+
+    try {
+      const headers: HeadersInit = {};
+      if (auth?.currentUser) {
+        const token = await auth.currentUser.getIdToken();
+        headers.Authorization = `Bearer ${token}`;
+      }
+
+      const res = await fetch("/api/servers", {
+        headers,
+        credentials: "same-origin",
+      });
+
+      if (!res.ok) {
+        const data = (await res.json().catch(() => ({}))) as { error?: string };
+        throw new Error(data.error ?? "Failed to load servers");
+      }
+
+      const data = (await res.json()) as { servers: Server[] };
+      setServers(data.servers ?? []);
+    } catch (err) {
+      setServersError(
+        err instanceof Error ? err.message : "Failed to load servers"
+      );
+      setServers([]);
+    } finally {
+      setLoadingServers(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadServers();
+  }, [loadServers, success]);
+
+  const visibleServers = servers.filter((s) => isVisibleServerStatus(s.status));
   const hasServers = visibleServers.length > 0;
 
   const handleManageBilling = async () => {
@@ -185,9 +285,9 @@ function DashboardContent({
 
       {success && (
         <div className="mt-6 rounded-xl border border-green-500/30 bg-green-500/10 px-4 py-3 text-sm text-green-300">
-          Subscription activated! Our team will manually set up your dedicated
-          server within {siteConfig.provisioningHours}. You&apos;ll receive RDP
-          credentials at {user.email}.
+          Subscription activated! We&apos;re setting up your server — you&apos;ll
+          receive access details at {user.email} within{" "}
+          {siteConfig.provisioningHours}.
         </div>
       )}
       {canceled && (
@@ -200,14 +300,29 @@ function DashboardContent({
         </div>
       )}
 
+      {serversError && (
+        <div className="mt-6 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+          {serversError}
+        </div>
+      )}
+
       <div className="mt-10">
-        {!hasServers ? (
+        {loadingServers ? (
+          <div className="flex items-center gap-3 text-gray-400">
+            <Spinner />
+            Loading your servers…
+          </div>
+        ) : !hasServers ? (
           <NoServersMarketing />
         ) : (
           <div className="space-y-4">
             <h2 className="text-lg font-semibold text-white">Your servers</h2>
             {visibleServers.map((server) => (
-              <ServerTile key={server.id} server={server} />
+              <ServerTile
+                key={server.id}
+                server={server}
+                onManageBilling={handleManageBilling}
+              />
             ))}
             <AddServerTile />
           </div>
@@ -227,16 +342,10 @@ function DashboardContent({
   );
 }
 
-export function DashboardClient({
-  user,
-  servers,
-}: {
-  user: AuthUser;
-  servers: CustomerServer[];
-}) {
+export function DashboardClient({ user }: { user: AuthUser }) {
   return (
     <Suspense fallback={<div className="p-12 text-gray-400">Loading…</div>}>
-      <DashboardContent user={user} servers={servers} />
+      <DashboardContent user={user} />
     </Suspense>
   );
 }

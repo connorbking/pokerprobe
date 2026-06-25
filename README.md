@@ -58,12 +58,28 @@ Set these in **Workers → pokerprobe → Settings → Variables and Secrets**:
 
 See **[docs/FIREBASE-SETUP.md](docs/FIREBASE-SETUP.md)** for Firebase provider configuration.
 
-### CI/CD (optional)
+### CI/CD (Cloudflare Workers Builds)
 
-Connect your Git repo in **Workers & Pages → Create → Connect to Git**:
+Connect your Git repo under **Workers & Pages → pokerprobe → Settings → Build**.
 
-- **Build command:** `npm run deploy` or `opennextjs-cloudflare build && opennextjs-cloudflare deploy`
-- **Root directory:** `/`
+**Important:** This app uses OpenNext — `next build` alone does **not** produce the CSS/JS static assets. You must run `opennextjs-cloudflare build` before deploy.
+
+| Setting | Value |
+|--------|--------|
+| **Build command** | `npm ci && npm run cf:build` |
+| **Deploy command** | `npx wrangler deploy` |
+| **Root directory** | `/` |
+
+Do **not** use `npm run build` as the build command. Do **not** use a Pages project or a “Build output directory” — this is a **Worker** with an assets binding (see `wrangler.jsonc`).
+
+If styles break after a secret-only update, retry a full deploy (Build → Redeploy) so static assets are re-uploaded with the Worker.
+
+### CI/CD (single-step alternative)
+
+| Setting | Value |
+|--------|--------|
+| **Build command** | *(leave empty)* |
+| **Deploy command** | `npm ci && npm run deploy` |
 
 ### Preview locally in Workers runtime
 

@@ -1,7 +1,16 @@
 import { NextResponse } from "next/server";
 import { headers } from "next/headers";
 import Stripe from "stripe";
-import { getStripe } from "@/lib/stripe";
+import {
+  createServer,
+  getServersBySubscriptionId,
+  updateServer,
+  upsertUser,
+  updateUserStripeCustomerId,
+  type PlanId,
+  type ServerType,
+} from "@/lib/firestore-server";
+import { getStripe, planFromPriceId } from "@/lib/stripe";
 
 function logManualProvisioning(event: Stripe.Event) {
   const timestamp = new Date().toISOString();
@@ -15,8 +24,7 @@ function logManualProvisioning(event: Stripe.Event) {
       customerId: session.customer,
       subscriptionId: session.subscription,
       planId: session.metadata?.planId,
-      message:
-        "Set up server manually, then add entry to src/data/customer-servers.json and redeploy.",
+      message: "Server record created in Firestore with status pending.",
     });
     return;
   }
@@ -35,8 +43,122 @@ function logManualProvisioning(event: Stripe.Event) {
       planId: subscription.metadata?.planId,
       message:
         subscription.status === "canceled" || event.type === "customer.subscription.deleted"
-          ? "Deactivate or suspend server manually. Update customer-servers.json."
-          : "Review subscription change and adjust server resources if needed.",
+          ? "Server marked terminated in Firestore."
+          : "Subscription change synced to Firestore.",
+    });
+  }
+}
+
+async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
+  const stripe = getStripe();
+
+  const customerId =
+    typeof session.customer === "string"
+      ? session.customer
+      : session.customer?.id;
+  const subscriptionId =
+    typeof session.subscription === "string"
+      ? session.subscription
+      : session.subscription?.id;
+
+  if (!customerId || !subscriptionId) {
+    console.error("[WEBHOOK] checkout.session.completed missing customer/subscription");
+    return;
+  }
+
+  const userId = session.metadata?.userId;
+  const userEmail =
+    session.metadata?.userEmail ??
+    session.customer_details?.email ??
+    session.customer_email;
+
+  if (!userId || !userEmail) {
+    console.error("[WEBHOOK] checkout.session.completed missing userId/userEmail metadata");
+    return;
+  }
+
+  const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+  const priceId = subscription.items.data[0]?.price.id ?? session.metadata?.planId ?? "";
+  const planSlug = planFromPriceId(priceId) ?? "starter";
+  const plan = planSlug as PlanId;
+  const serverType: ServerType = plan === "baremetal" ? "dedicated" : "cloud";
+
+  await upsertUser(userId, userEmail, customerId);
+  await updateUserStripeCustomerId(userId, customerId);
+
+  const planLabels: Record<PlanId, string> = {
+    starter: "Study",
+    pro: "Solver",
+    elite: "Farm",
+    baremetal: "Bare Metal",
+  };
+
+  const server = await createServer({
+    userId,
+    userEmail,
+    stripeSubscriptionId: subscriptionId,
+    stripePriceId: priceId,
+    plan,
+    serverType,
+    status: "pending",
+    ip: null,
+    hostname: null,
+    username: null,
+    guacamoleUrl: null,
+    hetznerServerId: null,
+    label: `${planLabels[plan]} server`,
+    provisionedAt: null,
+    canceledAt: null,
+    notes: "",
+  });
+
+  console.log(
+    `[PROVISIONING NEEDED] serverId=${server.id} plan=${plan} userId=${userId}`
+  );
+
+  logManualProvisioning({
+    type: "checkout.session.completed",
+    data: { object: session },
+  } as Stripe.Event);
+}
+
+async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
+  const servers = await getServersBySubscriptionId(subscription.id);
+  if (servers.length === 0) return;
+
+  const status = subscription.status;
+  let nextStatus: "active" | "suspended" | null = null;
+
+  if (status === "past_due" || status === "unpaid") {
+    nextStatus = "suspended";
+  } else if (status === "active") {
+    nextStatus = "active";
+  }
+
+  if (!nextStatus) return;
+
+  for (const server of servers) {
+    if (server.status === "terminated") continue;
+
+    if (nextStatus === "suspended") {
+      await updateServer(server.id, { status: "suspended" });
+    } else if (
+      nextStatus === "active" &&
+      server.status === "suspended"
+    ) {
+      await updateServer(server.id, { status: "active" });
+    }
+  }
+}
+
+async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
+  const servers = await getServersBySubscriptionId(subscription.id);
+  const canceledAt = new Date().toISOString();
+
+  for (const server of servers) {
+    await updateServer(server.id, {
+      status: "terminated",
+      canceledAt,
     });
   }
 }
@@ -67,14 +189,34 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
   }
 
-  switch (event.type) {
-    case "checkout.session.completed":
-    case "customer.subscription.updated":
-    case "customer.subscription.deleted":
-      logManualProvisioning(event);
-      break;
-    default:
-      break;
+  try {
+    switch (event.type) {
+      case "checkout.session.completed":
+        await handleCheckoutCompleted(
+          event.data.object as Stripe.Checkout.Session
+        );
+        break;
+      case "customer.subscription.updated":
+        await handleSubscriptionUpdated(
+          event.data.object as Stripe.Subscription
+        );
+        logManualProvisioning(event);
+        break;
+      case "customer.subscription.deleted":
+        await handleSubscriptionDeleted(
+          event.data.object as Stripe.Subscription
+        );
+        logManualProvisioning(event);
+        break;
+      default:
+        break;
+    }
+  } catch (err) {
+    console.error(`Webhook handler error for ${event.type}:`, err);
+    return NextResponse.json(
+      { error: "Webhook handler failed" },
+      { status: 500 }
+    );
   }
 
   return NextResponse.json({ received: true });
