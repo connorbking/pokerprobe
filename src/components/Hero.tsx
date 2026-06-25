@@ -29,7 +29,7 @@ export function Hero() {
           </h1>
 
           <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-gray-300">
-            Dedicated Windows servers optimized for HRC, Flopzilla, ICMIZER,
+            Shared & dedicated servers with a sleek web interface optimized for HRC, Flopzilla, ICMIZER,
             Power Equilab, and other poker simulation tools. Queue overnight
             solves, monitor progress remotely, and never waste study time
             waiting on your laptop.
