@@ -67,7 +67,7 @@ Connect your Git repo under **Workers & Pages → pokerprobe → Settings → Bu
 | Setting | Value |
 |--------|--------|
 | **Build command** | `npm ci && npm run cf:build` |
-| **Deploy command** | `npx wrangler deploy` |
+| **Deploy command** | `npx wrangler deploy --keep-vars` |
 | **Root directory** | `/` |
 
 Do **not** use `npm run build` as the build command. Do **not** use a Pages project or a “Build output directory” — this is a **Worker** with an assets binding (see `wrangler.jsonc`).

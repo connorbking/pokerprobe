@@ -35,7 +35,7 @@ Paste the Firebase service account JSON as **one line**. Download from Firebase 
 
 ### Cloudflare (runtime — fixes “Server storage is not configured”)
 
-In **Workers → pokerprobe → Settings → Variables and Secrets** (runtime, **not** Build variables):
+Server-only vars must be available to the **deployed Worker at runtime**, not just during the Next.js build. In **Workers → pokerprobe → Settings → Variables and Secrets**, set these as **Secrets** (recommended for the service account JSON):
 
 | Name | Type | Value |
 |------|------|--------|
@@ -48,7 +48,11 @@ In **Workers → pokerprobe → Settings → Variables and Secrets** (runtime, *
 |------|------|--------|
 | `GOOGLE_SERVICE_ACCOUNT_JSON_BASE64` | Secret | Run `node scripts/encode-service-account.mjs path/to/key.json` and paste the output |
 
-After saving secrets, reload `/dashboard`. Check status at `/api/health/storage` — both `hasProjectId` and `hasServiceAccount` should be `true`.
+`wrangler.jsonc` declares these binding names via `vars` / `secrets.required`. Deploy uses `wrangler deploy --keep-vars` so dashboard values are not wiped. **Do not** put secret names in the `vars` block with empty strings — that overwrites dashboard secrets on deploy.
+
+Also duplicate build-time vars in **Build variables and secrets** so `NEXT_PUBLIC_*` are inlined during `npm run cf:build`.
+
+After saving secrets, redeploy and check `/api/health/storage` — both `hasProjectId` and `hasServiceAccount` should be `true`.
 
 ## 3. Custom auth domain (`www.pokerprobe.com`)
 

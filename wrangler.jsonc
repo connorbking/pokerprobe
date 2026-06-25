@@ -7,6 +7,7 @@
     "nodejs_compat",
     "global_fetch_strictly_public"
   ],
+  "keep_vars": true,
   "assets": {
     "directory": ".open-next/assets",
     "binding": "ASSETS",
@@ -19,15 +20,20 @@
       "service": "pokerprobe"
     }
   ],
+  // Non-secret vars — empty placeholders; dashboard Build variables override when keep_vars is true.
+  // Do NOT list secrets here; empty vars overwrite dashboard secrets on deploy.
   "vars": {
     "FIREBASE_PROJECT_ID": "",
-    "GOOGLE_SERVICE_ACCOUNT_JSON": "",
-    "GOOGLE_SERVICE_ACCOUNT_JSON_BASE64": "",
-    "STRIPE_SECRET_KEY": "",
-    "STRIPE_WEBHOOK_SECRET": "",
     "STRIPE_PRICE_STARTER": "",
     "STRIPE_PRICE_PRO": "",
     "STRIPE_PRICE_ELITE": "",
     "STRIPE_PRICE_BAREMETAL": ""
+  },
+  "secrets": {
+    "required": [
+      "GOOGLE_SERVICE_ACCOUNT_JSON",
+      "STRIPE_SECRET_KEY",
+      "STRIPE_WEBHOOK_SECRET"
+    ]
   }
 }
