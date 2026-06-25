@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getServerUserFromRequest } from "@/lib/firebase/server-auth";
+import { getFirestoreConfigStatus } from "@/lib/firestore-env";
 import { getServersByUserId } from "@/lib/firestore-server";
 
 export async function GET(request: Request) {
@@ -13,13 +14,13 @@ export async function GET(request: Request) {
     return NextResponse.json({ servers });
   } catch (err) {
     console.error("GET /api/servers error:", err);
-    const detail =
-      err instanceof Error && err.message.includes("not configured")
-        ? err.message.replace(/^Firestore is not configured\.?\s*/i, "")
-        : null;
-    const message = detail
-      ? `Server storage is not configured. ${detail}`
-      : "Failed to load servers";
+    const status = getFirestoreConfigStatus();
+    let message = "Failed to load servers";
+    if (err instanceof Error && err.message.includes("not configured")) {
+      message = status.hint
+        ? `Server storage is not configured. ${status.hint}`
+        : `Server storage is not configured. Missing: ${status.missing.join(", ")}.`;
+    }
     return NextResponse.json({ error: message }, { status: 503 });
   }
 }

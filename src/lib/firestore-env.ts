@@ -7,7 +7,13 @@ export interface FirestoreConfigStatus {
   configured: boolean;
   hasProjectId: boolean;
   hasServiceAccount: boolean;
+  /** Raw env var is non-empty (before JSON validation). */
+  serviceAccountEnvPresent: boolean;
+  serviceAccountBase64EnvPresent: boolean;
+  /** Raw env present but JSON/base64 parsing failed. */
+  invalidServiceAccountJson: boolean;
   missing: string[];
+  hint?: string;
 }
 
 function decodeBase64Json(value: string): string | null {
@@ -49,18 +55,38 @@ export function parseServiceAccountJson(
   }
 }
 
+function serviceAccountHint(
+  jsonPresent: boolean,
+  base64Present: boolean,
+  parseable: boolean
+): string | undefined {
+  if (parseable) return undefined;
+  if (jsonPresent || base64Present) {
+    return "Service account env var is set but invalid. Use minified single-line JSON or run: node scripts/encode-service-account.mjs key.json and set GOOGLE_SERVICE_ACCOUNT_JSON_BASE64.";
+  }
+  return "Set GOOGLE_SERVICE_ACCOUNT_JSON (Secret, single-line JSON) or GOOGLE_SERVICE_ACCOUNT_JSON_BASE64 in Cloudflare Variables and secrets, then redeploy.";
+}
+
 export function getFirestoreConfigStatus(): FirestoreConfigStatus {
   const projectId =
     process.env.FIREBASE_PROJECT_ID ??
     process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
+
+  const rawJson = process.env.GOOGLE_SERVICE_ACCOUNT_JSON?.trim() ?? "";
+  const rawBase64 = process.env.GOOGLE_SERVICE_ACCOUNT_JSON_BASE64?.trim() ?? "";
   const serviceAccountJson =
-    parseServiceAccountJson(process.env.GOOGLE_SERVICE_ACCOUNT_JSON) ??
-    parseServiceAccountJson(process.env.GOOGLE_SERVICE_ACCOUNT_JSON_BASE64);
+    parseServiceAccountJson(rawJson || undefined) ??
+    parseServiceAccountJson(rawBase64 || undefined);
 
   const hasProjectId = Boolean(projectId?.trim());
+  const serviceAccountEnvPresent = rawJson.length > 0;
+  const serviceAccountBase64EnvPresent = rawBase64.length > 0;
   const hasServiceAccount = Boolean(serviceAccountJson);
-  const missing: string[] = [];
+  const invalidServiceAccountJson =
+    (serviceAccountEnvPresent || serviceAccountBase64EnvPresent) &&
+    !hasServiceAccount;
 
+  const missing: string[] = [];
   if (!hasProjectId) {
     missing.push("FIREBASE_PROJECT_ID");
   }
@@ -74,16 +100,25 @@ export function getFirestoreConfigStatus(): FirestoreConfigStatus {
     configured: hasProjectId && hasServiceAccount,
     hasProjectId,
     hasServiceAccount,
+    serviceAccountEnvPresent,
+    serviceAccountBase64EnvPresent,
+    invalidServiceAccountJson,
     missing,
+    hint: serviceAccountHint(
+      serviceAccountEnvPresent,
+      serviceAccountBase64EnvPresent,
+      hasServiceAccount
+    ),
   };
 }
 
 export function getFirestoreConfig(): FirestoreConfig {
   const status = getFirestoreConfigStatus();
   if (!status.configured) {
-    throw new Error(
-      `Firestore is not configured. Missing: ${status.missing.join(", ")}.`
-    );
+    const detail = status.invalidServiceAccountJson
+      ? "GOOGLE_SERVICE_ACCOUNT_JSON is set but could not be parsed as JSON or base64"
+      : status.missing.join(", ");
+    throw new Error(`Firestore is not configured. Missing: ${detail}.`);
   }
 
   const projectId =
