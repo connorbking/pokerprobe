@@ -11,16 +11,40 @@ PokerProbe uses **Firebase Auth** for Google and email/password sign-in.
 
 ```
 NEXT_PUBLIC_FIREBASE_API_KEY=...
-NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=www.pokerprobe.com
 NEXT_PUBLIC_FIREBASE_PROJECT_ID=your-project
 NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your-project.firebasestorage.app
 NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=...
 NEXT_PUBLIC_FIREBASE_APP_ID=...
 ```
 
-Set the same variables in **Cloudflare Workers → Variables** for production.
+Set the same variables in **Cloudflare Workers → Build → Build variables** (required for `NEXT_PUBLIC_*`) and **Variables and Secrets** for production.
 
-## 2. Enable sign-in providers
+## 2. Custom auth domain (`www.pokerprobe.com`)
+
+The app runs on **Cloudflare Workers**, not Firebase Hosting. Firebase OAuth still needs `https://<authDomain>/__/auth/handler` to resolve. **`next.config.ts` rewrites** proxy `/__/auth/*` and `/__/firebase/init.json` to `https://<project>.firebaseapp.com` on whatever hostname serves this Worker.
+
+**`NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN` must exactly match the hostname in the handler URL.**
+
+| If auth domain is | Handler URL (must return Firebase auth page, not 404) |
+|-------------------|--------------------------------------------------------|
+| `www.pokerprobe.com` | `https://www.pokerprobe.com/__/auth/handler` |
+| `pokerprobe.com` | `https://pokerprobe.com/__/auth/handler` |
+
+Use **`www.pokerprobe.com`** if that is your custom auth domain. If you connected the **apex** domain in Firebase Hosting instead, set `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=pokerprobe.com` and ensure `pokerprobe.com` routes to this Worker (not only `www`).
+
+After deploy, open the handler URL in a browser — you should see a Firebase auth page (not a 404). A message about “missing initial state” is normal when visiting directly.
+
+### Google Cloud OAuth (required for Google sign-in)
+
+In [Google Cloud Console → Credentials](https://console.cloud.google.com/apis/credentials) → your **Web client** (Firebase auto-created):
+
+- **Authorized JavaScript origins:** `https://www.pokerprobe.com`, `https://pokerprobe.com`, `http://localhost:3000`
+- **Authorized redirect URIs:** `https://www.pokerprobe.com/__/auth/handler` (and `https://pokerprobe.com/__/auth/handler` if using apex as auth domain)
+
+Redeploy after changing `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN` so the client bundle picks it up.
+
+## 3. Enable sign-in providers
 
 In Firebase Console → **Authentication → Sign-in method**:
 
@@ -29,10 +53,9 @@ In Firebase Console → **Authentication → Sign-in method**:
 
 ### Google
 - Enable **Google**
-- Firebase handles OAuth — no separate Google Cloud setup needed for basic use
-- Add authorized domain: `pokerprobe.com` and `localhost`
+- Firebase handles OAuth — update redirect URIs in Google Cloud as above
 
-## 3. Authorized domains
+## 4. Authorized domains
 
 Firebase Console → Authentication → Settings → **Authorized domains**
 
@@ -41,16 +64,23 @@ Add:
 - `pokerprobe.com`
 - `www.pokerprobe.com`
 
-## 4. How it works in this app
+## 5. How it works in this app
 
 1. User signs in via Firebase (Google popup or email form)
-2. Client gets a Firebase ID token and POSTs it to `/api/auth/session`
-3. Server verifies the token (edge-compatible, no firebase-admin) and sets an httpOnly cookie
-4. Protected routes (`/dashboard`, Stripe APIs) read and verify that cookie
+2. OAuth redirects through `https://<authDomain>/__/auth/handler` (proxied to Firebase Hosting)
+3. Client gets a Firebase ID token and POSTs it to `/api/auth/session`
+4. Server verifies the token (edge-compatible, no firebase-admin) and sets an httpOnly cookie
+5. Protected routes (`/dashboard`, Stripe APIs) read and verify that cookie
 
-## 5. Local development
+## 6. Local development
 
-Add credentials to `.env.local`, then:
+For local dev, use the default Firebase hosting domain in `.env.local` so OAuth does not redirect to production:
+
+```
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=pokerprobe-4c8f3.firebaseapp.com
+```
+
+Add credentials, then:
 
 ```bash
 npm run dev
@@ -63,6 +93,8 @@ Visit `/signin` to test Google and email sign-in.
 | Issue | Fix |
 |-------|-----|
 | `auth/unauthorized-domain` | Add your domain in Firebase authorized domains |
+| 404 on `/__/auth/handler` | Redeploy Worker; ensure custom domain routes to this Worker |
+| Google `redirect_uri_mismatch` | Add `https://<authDomain>/__/auth/handler` in Google Cloud redirect URIs |
 | Google popup fails | Ensure Google provider is enabled in Firebase |
-| "Firebase not configured" | Fill all `NEXT_PUBLIC_FIREBASE_*` env vars |
+| "Firebase not configured" | Fill all `NEXT_PUBLIC_FIREBASE_*` in Cloudflare **Build variables** and redeploy |
 | Sign-in works but dashboard redirects | Check browser cookies; ensure `/api/auth/session` returns 200 |
