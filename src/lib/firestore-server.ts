@@ -35,6 +35,12 @@ export interface Server {
   canceledAt: string | null;
   notes: string;
   createdAt: string;
+  /** Live metrics — populated when monitoring is wired up */
+  cpuUsedPercent?: number | null;
+  memoryUsedGb?: number | null;
+  storageUsedGb?: number | null;
+  activeVcpus?: number | null;
+  uptimeSeconds?: number | null;
 }
 
 export interface FirestoreUser {

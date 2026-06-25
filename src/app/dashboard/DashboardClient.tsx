@@ -12,6 +12,10 @@ import {
   getServerDisplayStatus,
   isVisibleServerStatus,
 } from "@/lib/servers";
+import {
+  getServerStatRows,
+  isServerSettingUp,
+} from "@/lib/server-display";
 
 function StatusDot({
   color,
@@ -58,8 +62,8 @@ function ServerTile({
 }) {
   const displayStatus = getServerDisplayStatus(server);
   const title = server.label || `${getPlanLabel(server.plan)} server`;
-  const isSettingUp =
-    server.status === "pending" || server.status === "provisioning";
+  const isSettingUp = isServerSettingUp(server);
+  const statRows = getServerStatRows(server);
 
   return (
     <div className="card-glow w-full rounded-xl border border-white/10 bg-felt-800/50 p-6 sm:p-8">
@@ -96,67 +100,40 @@ function ServerTile({
         </div>
       )}
 
-      {server.status === "active" && (
-        <>
-          <dl className="mt-6 grid gap-3 border-t border-white/5 pt-6 sm:grid-cols-2 lg:grid-cols-3">
-            {server.hostname && (
-              <div>
-                <dt className="text-xs uppercase tracking-wide text-gray-500">
-                  Hostname
-                </dt>
-                <dd className="mt-1 font-mono text-sm text-gray-200">
-                  {server.hostname}
-                </dd>
-              </div>
-            )}
-            {server.ip && (
-              <div>
-                <dt className="text-xs uppercase tracking-wide text-gray-500">
-                  IP
-                </dt>
-                <dd className="mt-1 font-mono text-sm text-gray-200">
-                  {server.ip}
-                </dd>
-              </div>
-            )}
-            {server.username && (
-              <div>
-                <dt className="text-xs uppercase tracking-wide text-gray-500">
-                  Username
-                </dt>
-                <dd className="mt-1 font-mono text-sm text-gray-200">
-                  {server.username}
-                </dd>
-              </div>
-            )}
-            {server.provisionedAt && (
-              <div>
-                <dt className="text-xs uppercase tracking-wide text-gray-500">
-                  Provisioned
-                </dt>
-                <dd className="mt-1 text-sm text-gray-200">
-                  {new Date(server.provisionedAt).toLocaleDateString()}
-                </dd>
-              </div>
-            )}
-          </dl>
-
-          {server.guacamoleUrl && (
-            <a
-              href={server.guacamoleUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mt-6 inline-flex items-center gap-2 rounded-lg bg-gold-500 px-5 py-2.5 text-sm font-semibold text-felt-950 transition hover:bg-gold-400"
+      <dl className="mt-6 grid gap-4 border-t border-white/5 pt-6 sm:grid-cols-2 lg:grid-cols-3">
+        {statRows.map((row) => (
+          <div key={row.label}>
+            <dt className="text-xs uppercase tracking-wide text-gray-500">
+              {row.label}
+            </dt>
+            <dd
+              className={`mt-1 text-sm text-gray-200 ${row.mono ? "font-mono" : ""} ${
+                isSettingUp && row.label === "Server address"
+                  ? "italic text-gray-400"
+                  : ""
+              }`}
             >
-              Connect
-            </a>
-          )}
+              {row.value}
+            </dd>
+          </div>
+        ))}
+      </dl>
 
-          <p className="mt-4 text-xs text-gray-500">
-            Credentials were sent to {server.userEmail} when this server was
-            provisioned.
-          </p>
-        </>
+      {server.status === "active" && server.guacamoleUrl && (
+        <a
+          href={server.guacamoleUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-6 inline-flex items-center gap-2 rounded-lg bg-gold-500 px-5 py-2.5 text-sm font-semibold text-felt-950 transition hover:bg-gold-400"
+        >
+          Connect
+        </a>
+      )}
+
+      {server.status === "active" && !server.guacamoleUrl && (
+        <p className="mt-4 text-xs text-gray-500">
+          Your workspace link will appear here once setup is complete.
+        </p>
       )}
     </div>
   );
@@ -203,8 +180,10 @@ function DashboardContent({ user }: { user: AuthUser }) {
   const [loadingServers, setLoadingServers] = useState(true);
   const [serversError, setServersError] = useState<string | null>(null);
 
-  const loadServers = useCallback(async () => {
-    setLoadingServers(true);
+  const loadServers = useCallback(async (options?: { silent?: boolean }) => {
+    if (!options?.silent) {
+      setLoadingServers(true);
+    }
     setServersError(null);
 
     try {
@@ -231,15 +210,36 @@ function DashboardContent({ user }: { user: AuthUser }) {
       setServersError(
         err instanceof Error ? err.message : "Failed to load servers"
       );
-      setServers([]);
+      if (!options?.silent) {
+        setServers([]);
+      }
     } finally {
-      setLoadingServers(false);
+      if (!options?.silent) {
+        setLoadingServers(false);
+      }
     }
   }, []);
 
   useEffect(() => {
     void loadServers();
   }, [loadServers, success]);
+
+  useEffect(() => {
+    if (!success) return;
+
+    const interval = setInterval(() => {
+      void loadServers({ silent: true });
+    }, 4000);
+
+    const timeout = setTimeout(() => {
+      clearInterval(interval);
+    }, 60000);
+
+    return () => {
+      clearInterval(interval);
+      clearTimeout(timeout);
+    };
+  }, [success, loadServers]);
 
   const visibleServers = servers.filter((s) => isVisibleServerStatus(s.status));
   const hasServers = visibleServers.length > 0;
@@ -286,9 +286,8 @@ function DashboardContent({ user }: { user: AuthUser }) {
 
       {success && (
         <div className="mt-6 rounded-xl border border-green-500/30 bg-green-500/10 px-4 py-3 text-sm text-green-300">
-          Subscription activated! We&apos;re setting up your server — you&apos;ll
-          receive access details at {user.email} within{" "}
-          {siteConfig.provisioningHours}.
+          Subscription activated! Your server is being prepared — stats will
+          update below as setup completes.
         </div>
       )}
       {canceled && (
@@ -314,7 +313,24 @@ function DashboardContent({ user }: { user: AuthUser }) {
             Loading your servers…
           </div>
         ) : !hasServers ? (
-          <NoServersMarketing />
+          success ? (
+            <div className="card-glow rounded-xl border border-white/10 bg-felt-800/50 p-6 sm:p-8">
+              <div className="flex items-center gap-3">
+                <Spinner />
+                <div>
+                  <h2 className="text-lg font-semibold text-white">
+                    Preparing your server
+                  </h2>
+                  <p className="mt-1 text-sm text-gray-400">
+                    Your subscription is active. Server details will appear here
+                    in a moment.
+                  </p>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <NoServersMarketing />
+          )
         ) : (
           <div className="space-y-4">
             <h2 className="text-lg font-semibold text-white">Your servers</h2>

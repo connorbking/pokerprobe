@@ -1,6 +1,8 @@
 export const siteConfig = {
   name: "PokerProbe",
   domain: "www.pokerprobe.com",
+  /** Base domain for per-server subdomains shown in the dashboard */
+  serverDomain: "pokerprobe.com",
   url: "https://www.pokerprobe.com",
   tagline: "24/7 Dedicated Servers for Poker Simulations",
   description:
