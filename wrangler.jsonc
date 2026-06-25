@@ -20,14 +20,11 @@
       "service": "pokerprobe"
     }
   ],
-  // Non-secret vars — empty placeholders; dashboard Build variables override when keep_vars is true.
-  // Do NOT list secrets here; empty vars overwrite dashboard secrets on deploy.
+  // Only non-sensitive values with real defaults. Never use "" here — wrangler
+  // overwrites dashboard vars on deploy. Everything else comes from the dashboard
+  // and is preserved via keep_vars + wrangler deploy --keep-vars.
   "vars": {
-    "FIREBASE_PROJECT_ID": "",
-    "STRIPE_PRICE_STARTER": "",
-    "STRIPE_PRICE_PRO": "",
-    "STRIPE_PRICE_ELITE": "",
-    "STRIPE_PRICE_BAREMETAL": ""
+    "FIREBASE_PROJECT_ID": "pokerprobe-4c8f3"
   },
   "secrets": {
     "required": [
