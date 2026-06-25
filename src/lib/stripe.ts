@@ -1,5 +1,12 @@
 import Stripe from "stripe";
 
+/** Stripe Price IDs — Study / Solver / Farm */
+export const STRIPE_PRICE_IDS = {
+  starter: "price_1TmHyaIjjUzEL2aMgI3SKxkr",
+  pro: "price_1TmHyaIjjUzEL2aM5EEon6Xj",
+  elite: "price_1TmHyaIjjUzEL2aM2PRygnj3",
+} as const;
+
 export function getStripe() {
   const key = process.env.STRIPE_SECRET_KEY;
   if (!key) {
@@ -13,9 +20,9 @@ export function getStripe() {
 
 export function getPriceId(planId: string): string | null {
   const map: Record<string, string | undefined> = {
-    starter: process.env.STRIPE_PRICE_STARTER,
-    pro: process.env.STRIPE_PRICE_PRO,
-    elite: process.env.STRIPE_PRICE_ELITE,
+    starter: STRIPE_PRICE_IDS.starter,
+    pro: STRIPE_PRICE_IDS.pro,
+    elite: STRIPE_PRICE_IDS.elite,
     baremetal: process.env.STRIPE_PRICE_BAREMETAL,
   };
   return map[planId] ?? null;
@@ -23,9 +30,9 @@ export function getPriceId(planId: string): string | null {
 
 export function planFromPriceId(priceId: string): string | null {
   const pairs: Array<[string | undefined, string]> = [
-    [process.env.STRIPE_PRICE_STARTER, "starter"],
-    [process.env.STRIPE_PRICE_PRO, "pro"],
-    [process.env.STRIPE_PRICE_ELITE, "elite"],
+    [STRIPE_PRICE_IDS.starter, "starter"],
+    [STRIPE_PRICE_IDS.pro, "pro"],
+    [STRIPE_PRICE_IDS.elite, "elite"],
     [process.env.STRIPE_PRICE_BAREMETAL, "baremetal"],
   ];
 

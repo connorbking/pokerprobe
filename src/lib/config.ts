@@ -72,7 +72,6 @@ export const pricingPlans = [
       "Queue small GTO+ / HRC view-only sessions",
       "Basic monitoring & email support",
     ],
-    stripePriceEnv: "STRIPE_PRICE_STARTER",
     highlighted: false,
   },
   {
@@ -90,7 +89,6 @@ export const pricingPlans = [
       "Overnight HRC MTT & SNG trees (medium complexity)",
       "Auto-restart, file sync & priority support",
     ],
-    stripePriceEnv: "STRIPE_PRICE_PRO",
     highlighted: true,
   },
   {
@@ -108,7 +106,6 @@ export const pricingPlans = [
       "Large HRC Pro abstractions & deep postflop spots",
       "Dedicated IP option & 24/7 priority support",
     ],
-    stripePriceEnv: "STRIPE_PRICE_ELITE",
     highlighted: false,
   },
 ];

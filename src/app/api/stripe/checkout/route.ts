@@ -9,15 +9,17 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Sign in required" }, { status: 401 });
     }
 
-    const { planId } = await request.json();
+    const body = (await request.json()) as { planId?: string };
+    const planId = body.planId;
+    if (!planId || typeof planId !== "string") {
+      return NextResponse.json({ error: "Missing planId" }, { status: 400 });
+    }
+
     const priceId = getPriceId(planId);
 
-    if (!priceId || priceId.startsWith("price_...")) {
+    if (!priceId) {
       return NextResponse.json(
-        {
-          error:
-            "Stripe is not configured yet. Set STRIPE_PRICE_* env variables.",
-        },
+        { error: "Unknown plan or Stripe is not configured." },
         { status: 503 }
       );
     }
