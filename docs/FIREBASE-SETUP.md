@@ -20,7 +20,37 @@ NEXT_PUBLIC_FIREBASE_APP_ID=...
 
 Set the same variables in **Cloudflare Workers → Build → Build variables** (required for `NEXT_PUBLIC_*`) and **Variables and Secrets** for production.
 
-## 2. Custom auth domain (`www.pokerprobe.com`)
+## 2. Firestore (server storage — dashboard & webhooks)
+
+The dashboard reads server records from Firestore. This uses a **service account**, separate from client login.
+
+### Local (`.env.local`)
+
+```
+FIREBASE_PROJECT_ID=pokerprobe-4c8f3
+GOOGLE_SERVICE_ACCOUNT_JSON={"type":"service_account",...}
+```
+
+Paste the Firebase service account JSON as **one line**. Download from Firebase Console → Project settings → Service accounts → Generate new private key.
+
+### Cloudflare (runtime — fixes “Server storage is not configured”)
+
+In **Workers → pokerprobe → Settings → Variables and Secrets** (runtime, **not** Build variables):
+
+| Name | Type | Value |
+|------|------|--------|
+| `FIREBASE_PROJECT_ID` | Variable | `pokerprobe-4c8f3` |
+| `GOOGLE_SERVICE_ACCOUNT_JSON` | Secret | Full JSON minified to **one line** |
+
+**Or** (easier if Cloudflare truncates multiline secrets):
+
+| Name | Type | Value |
+|------|------|--------|
+| `GOOGLE_SERVICE_ACCOUNT_JSON_BASE64` | Secret | Run `node scripts/encode-service-account.mjs path/to/key.json` and paste the output |
+
+After saving secrets, reload `/dashboard`. Check status at `/api/health/storage` — both `hasProjectId` and `hasServiceAccount` should be `true`.
+
+## 3. Custom auth domain (`www.pokerprobe.com`)
 
 The app runs on **Cloudflare Workers**, not Firebase Hosting. Firebase OAuth still needs `https://<authDomain>/__/auth/handler` to resolve. **`next.config.ts` rewrites** proxy `/__/auth/*` and `/__/firebase/init.json` to `https://<project>.firebaseapp.com` on whatever hostname serves this Worker.
 
@@ -44,7 +74,7 @@ In [Google Cloud Console → Credentials](https://console.cloud.google.com/apis/
 
 Redeploy after changing `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN` so the client bundle picks it up.
 
-## 3. Enable sign-in providers
+## 4. Enable sign-in providers
 
 In Firebase Console → **Authentication → Sign-in method**:
 
@@ -55,7 +85,7 @@ In Firebase Console → **Authentication → Sign-in method**:
 - Enable **Google**
 - Firebase handles OAuth — update redirect URIs in Google Cloud as above
 
-## 4. Authorized domains
+## 5. Authorized domains
 
 Firebase Console → Authentication → Settings → **Authorized domains**
 
@@ -64,7 +94,7 @@ Add:
 - `pokerprobe.com`
 - `www.pokerprobe.com`
 
-## 5. How it works in this app
+## 6. How it works in this app
 
 1. User signs in via Firebase (Google popup or email form)
 2. OAuth redirects through `https://<authDomain>/__/auth/handler` (proxied to Firebase Hosting)
@@ -72,7 +102,7 @@ Add:
 4. Server verifies the token (edge-compatible, no firebase-admin) and sets an httpOnly cookie
 5. Protected routes (`/dashboard`, Stripe APIs) read and verify that cookie
 
-## 6. Local development
+## 7. Local development
 
 For local dev, use the default Firebase hosting domain in `.env.local` so OAuth does not redirect to production:
 

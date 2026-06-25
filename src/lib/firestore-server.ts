@@ -5,6 +5,7 @@ import {
   firestoreUpdate,
   getAccessToken,
 } from "./firestore";
+import { getFirestoreConfig } from "./firestore-env";
 
 export type PlanId = "starter" | "pro" | "elite" | "baremetal";
 export type ServerType = "cloud" | "dedicated";
@@ -44,18 +45,7 @@ export interface FirestoreUser {
 }
 
 function getFirestoreEnv() {
-  const projectId =
-    process.env.FIREBASE_PROJECT_ID ??
-    process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
-  const serviceAccountJson = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
-
-  if (!projectId || !serviceAccountJson) {
-    throw new Error(
-      "Firestore is not configured. Set FIREBASE_PROJECT_ID and GOOGLE_SERVICE_ACCOUNT_JSON."
-    );
-  }
-
-  return { projectId, serviceAccountJson };
+  return getFirestoreConfig();
 }
 
 async function getToken(): Promise<{ projectId: string; token: string }> {

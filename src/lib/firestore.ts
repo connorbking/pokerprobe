@@ -103,6 +103,9 @@ export async function getAccessToken(
   }
 
   const sa = JSON.parse(serviceAccountJson) as ServiceAccount;
+  if (sa.private_key.includes("\\n")) {
+    sa.private_key = sa.private_key.replace(/\\n/g, "\n");
+  }
   const key = await importPKCS8(sa.private_key, "RS256");
 
   const assertion = await new SignJWT({

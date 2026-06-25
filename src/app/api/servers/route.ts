@@ -13,10 +13,13 @@ export async function GET(request: Request) {
     return NextResponse.json({ servers });
   } catch (err) {
     console.error("GET /api/servers error:", err);
-    const message =
+    const detail =
       err instanceof Error && err.message.includes("not configured")
-        ? "Server storage is not configured"
-        : "Failed to load servers";
+        ? err.message.replace(/^Firestore is not configured\.?\s*/i, "")
+        : null;
+    const message = detail
+      ? `Server storage is not configured. ${detail}`
+      : "Failed to load servers";
     return NextResponse.json({ error: message }, { status: 503 });
   }
 }
