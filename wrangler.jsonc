@@ -18,5 +18,16 @@
       "binding": "WORKER_SELF_REFERENCE",
       "service": "pokerprobe"
     }
-  ]
+  ],
+  "vars": {
+    "FIREBASE_PROJECT_ID": "",
+    "GOOGLE_SERVICE_ACCOUNT_JSON": "",
+    "GOOGLE_SERVICE_ACCOUNT_JSON_BASE64": "",
+    "STRIPE_SECRET_KEY": "",
+    "STRIPE_WEBHOOK_SECRET": "",
+    "STRIPE_PRICE_STARTER": "",
+    "STRIPE_PRICE_PRO": "",
+    "STRIPE_PRICE_ELITE": "",
+    "STRIPE_PRICE_BAREMETAL": ""
+  }
 }
