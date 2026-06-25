@@ -9,7 +9,13 @@ import {
 import { getStripePromise } from "@/lib/stripe-client";
 import { getPlanById } from "@/lib/config";
 
-export function CheckoutClient({ planId }: { planId: string }) {
+export function CheckoutClient({
+  planId,
+  publishableKey,
+}: {
+  planId: string;
+  publishableKey: string;
+}) {
   const plan = getPlanById(planId);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -51,7 +57,7 @@ export function CheckoutClient({ planId }: { planId: string }) {
     };
   }, [planId]);
 
-  const stripePromise = getStripePromise();
+  const stripePromise = getStripePromise(publishableKey);
 
   if (!plan) {
     return (
@@ -69,7 +75,7 @@ export function CheckoutClient({ planId }: { planId: string }) {
       <p className="text-gray-400">
         Stripe is not configured. Add{" "}
         <code className="text-gold-400">NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY</code>{" "}
-        to your environment.
+        to Cloudflare Variables and secrets (runtime).
       </p>
     );
   }

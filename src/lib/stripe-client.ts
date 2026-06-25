@@ -1,12 +1,24 @@
-import { loadStripe } from "@stripe/stripe-js";
+import { loadStripe, type Stripe } from "@stripe/stripe-js";
 
-let stripePromise: ReturnType<typeof loadStripe> | null = null;
+const stripePromises = new Map<string, Promise<Stripe | null>>();
 
-export function getStripePromise() {
-  const key = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
+export function getStripePromise(publishableKey: string | undefined) {
+  const key = publishableKey?.trim();
   if (!key) return null;
-  if (!stripePromise) {
-    stripePromise = loadStripe(key);
+
+  let promise = stripePromises.get(key);
+  if (!promise) {
+    promise = loadStripe(key);
+    stripePromises.set(key, promise);
   }
-  return stripePromise;
+  return promise;
+}
+
+/** Read publishable key on the server (runtime env on Cloudflare Workers). */
+export function getStripePublishableKey(): string {
+  return (
+    process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY?.trim() ??
+    process.env.STRIPE_PUBLISHABLE_KEY?.trim() ??
+    ""
+  );
 }
