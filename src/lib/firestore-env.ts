@@ -64,7 +64,7 @@ function serviceAccountHint(
   if (jsonPresent || base64Present) {
     return "Service account env var is set but invalid. Use minified single-line JSON or run: node scripts/encode-service-account.mjs key.json and set GOOGLE_SERVICE_ACCOUNT_JSON_BASE64.";
   }
-  return "Set GOOGLE_SERVICE_ACCOUNT_JSON (Secret, single-line JSON) or GOOGLE_SERVICE_ACCOUNT_JSON_BASE64 in Cloudflare Variables and secrets, then redeploy.";
+  return "Add GOOGLE_SERVICE_ACCOUNT_JSON_BASE64 as a Secret under Settings → Variables and secrets (runtime — not Build variables). Copy the same secrets to runtime that the Worker needs at request time, then Retry deployment.";
 }
 
 export function getFirestoreConfigStatus(): FirestoreConfigStatus {

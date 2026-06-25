@@ -28,7 +28,7 @@
   },
   "secrets": {
     "required": [
-      "GOOGLE_SERVICE_ACCOUNT_JSON",
+      "GOOGLE_SERVICE_ACCOUNT_JSON_BASE64",
       "STRIPE_SECRET_KEY",
       "STRIPE_WEBHOOK_SECRET"
     ]
