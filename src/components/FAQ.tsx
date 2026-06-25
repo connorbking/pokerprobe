@@ -1,0 +1,54 @@
+const faqs = [
+  {
+    q: "What poker software can I run?",
+    a: "Any Windows-native study tool you license yourself — Flopzilla, ICMIZER, HRC, PioSolver, GTO+, and more. Plans are sized to match each tool's real RAM and CPU needs (ICMIZER and Flopzilla are light; PioSolver preflop and large HRC trees need 64 GB–512 GB).",
+  },
+  {
+    q: "Which plan do I need for PioSolver?",
+    a: "Postflop solves (8–16 GB trees) fit the Solver plan (64 GB RAM). Preflop trees need at least 64 GB RAM per PioSolver's guidance — use Farm (128 GB) or Enterprise for the largest builds.",
+  },
+  {
+    q: "How fast is server provisioning?",
+    a: "After you subscribe, our team manually provisions your dedicated server within 24 hours. You'll receive RDP credentials by email, and connection details will appear in your dashboard.",
+  },
+  {
+    q: "Can I upgrade or downgrade my plan?",
+    a: "Yes. Changes take effect at the start of your next billing cycle. Contact support for mid-cycle upgrades if you need more RAM or cores immediately.",
+  },
+  {
+    q: "What does Enterprise pricing look like?",
+    a: "Our top reference build is 44 cores / 512 GB RAM (dual Xeon class) — typical for maximum HRC and preflop farm workloads. Managed pricing starts at $1,249/mo depending on hardware generation, storage, and support level. Contact us for an exact quote.",
+  },
+  {
+    q: "Do you offer refunds?",
+    a: "We offer a 7-day money-back guarantee on first-time subscriptions. See our Refund Policy for details.",
+  },
+];
+
+export function FAQ() {
+  return (
+    <section id="faq" className="border-t border-white/5 bg-felt-900/30 py-20 sm:py-28">
+      <div className="mx-auto max-w-3xl px-4 sm:px-6">
+        <div className="text-center">
+          <h2 className="font-display text-3xl font-bold text-white sm:text-4xl">
+            Frequently Asked Questions
+          </h2>
+        </div>
+
+        <dl className="mt-12 space-y-6">
+          {faqs.map((faq) => (
+            <div
+              key={faq.q}
+              className="card-glow rounded-xl border border-white/5 bg-felt-800/30 p-6"
+            >
+              <dt className="font-semibold text-white">{faq.q}</dt>
+              <dd className="mt-2 text-sm leading-relaxed text-gray-400">
+                {faq.a}
+              </dd>
+            </div>
+          ))}
+        </dl>
+      </div>
+    </section>
+  );
+}

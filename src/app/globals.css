@@ -1,0 +1,100 @@
+@import "tailwindcss";
+
+@theme {
+  --color-felt-950: #050a07;
+  --color-felt-900: #0a1510;
+  --color-felt-800: #0f1f17;
+  --color-felt-700: #163325;
+  --color-felt-600: #1e4a35;
+  --color-felt-500: #256644;
+  --color-felt-400: #3d8a5e;
+  --color-gold-400: #d4af37;
+  --color-gold-500: #c9a227;
+  --color-gold-600: #a88620;
+  --color-chip-red: #c0392b;
+  --color-chip-black: #1a1a1a;
+  --font-display: "Georgia", "Times New Roman", serif;
+  --font-body: "Segoe UI", system-ui, sans-serif;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: var(--color-felt-700);
+  color: #e8ede9;
+  font-family: var(--font-body);
+}
+
+.felt-texture {
+  background-color: var(--color-felt-700);
+  background-image:
+    radial-gradient(ellipse at 20% 0%, rgba(61, 138, 94, 0.18) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 100%, rgba(37, 102, 68, 0.12) 0%, transparent 50%),
+    repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0, 0, 0, 0.025) 2px,
+      rgba(0, 0, 0, 0.025) 4px
+    );
+}
+
+.card-glow {
+  box-shadow:
+    0 0 0 1px rgba(212, 175, 55, 0.15),
+    0 4px 24px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.gold-gradient-text {
+  background: linear-gradient(135deg, #f0d875 0%, #d4af37 50%, #a88620 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.suit-pattern {
+  background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.02'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+}
+
+@keyframes pulse-glow {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 3s ease-in-out infinite;
+}
+
+@keyframes partner-scroll {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.partner-carousel-track {
+  animation: partner-scroll 45s linear infinite;
+}
+
+.partner-carousel:hover .partner-carousel-track {
+  animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .partner-carousel-viewport {
+    overflow: visible;
+  }
+
+  .partner-carousel-track {
+    animation: none;
+    flex-wrap: wrap;
+    justify-content: center;
+    width: 100%;
+    gap: 1rem;
+  }
+}

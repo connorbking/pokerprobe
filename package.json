@@ -1,0 +1,38 @@
+{
+  "name": "pokerprobe",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
+    "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
+    "upload": "opennextjs-cloudflare build && opennextjs-cloudflare upload",
+    "cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts",
+    "setup-stripe": "node scripts/setup-stripe-products.mjs"
+  },
+  "dependencies": {
+    "@stripe/react-stripe-js": "^6.6.0",
+    "@stripe/stripe-js": "^9.8.0",
+    "firebase": "^11.10.0",
+    "jose": "^6.0.11",
+    "next": "^15.3.3",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "stripe": "^18.2.1"
+  },
+  "devDependencies": {
+    "@opennextjs/cloudflare": "^1.14.0",
+    "@tailwindcss/postcss": "^4.1.8",
+    "@types/node": "^22.15.29",
+    "@types/react": "^19.1.6",
+    "@types/react-dom": "^19.1.5",
+    "eslint": "^9.28.0",
+    "eslint-config-next": "^15.3.3",
+    "tailwindcss": "^4.1.8",
+    "typescript": "^5.8.3",
+    "wrangler": "^4.28.0"
+  }
+}
