@@ -15,6 +15,7 @@ export function getStripe() {
   return new Stripe(key, {
     apiVersion: "2025-08-27.basil",
     typescript: true,
+    httpClient: Stripe.createFetchHttpClient(),
   });
 }
 
