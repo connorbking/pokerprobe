@@ -9,18 +9,25 @@ On **`checkout.session.completed`**, when enabled, PokerProbe:
 
 ## Lab setup (home Myrtille via port-forward)
 
+**Origin IP and port** are stored in Firestore — not Worker env vars:
+
+- **`config/provisioning`** — platform defaults (auto-created on first checkout)
+- **`servers/{id}.ip`** and **`servers/{id}.originPort`** — set on each checkout
+
+Built-in fallbacks when the config doc does not exist yet: `173.70.205.120` / `8787`. Optional env vars `PROVISION_ORIGIN_IP` and `PROVISION_ORIGIN_PORT` only apply when seeding that doc.
+
 Set these in **Cloudflare Workers → pokerprobe → Settings → Variables and secrets**:
 
 | Name | Type | Example (lab) |
 |------|------|----------------|
 | `PROVISION_DNS_ENABLED` | Variable | `true` |
-| `PROVISION_ORIGIN_IP` | Variable | `173.70.205.120` |
-| `PROVISION_ORIGIN_PORT` | Variable | `8787` |
 | `PROVISION_DNS_PROXIED` | Variable | `false` (required for non-443 port) |
 | `PROVISION_AUTO_ACTIVATE` | Variable | `true` |
 | `PROVISION_DNS_DELETE_ON_TERMINATE` | Variable | `true` |
 | `CLOUDFLARE_ZONE_ID` | Secret | Zone id for `pokerprobe.com` |
 | `CLOUDFLARE_API_TOKEN` | Secret | Token with **Zone → DNS → Edit** |
+
+Optional (seed only): `PROVISION_ORIGIN_IP`, `PROVISION_ORIGIN_PORT` — override lab defaults when `config/provisioning` is first created.
 
 Local `.env.local` — same keys for webhook testing via Stripe CLI.
 
@@ -40,14 +47,14 @@ Cloudflare → **pokerprobe.com** → Overview → **Zone ID** (right column)
 curl https://www.pokerprobe.com/api/health/provision
 ```
 
-Expect `"configured": true` and your origin IP/port reflected in the status object.
+Expect `"configured": true` and `defaults.defaultOriginIp` / `defaults.defaultOriginPort` from Firestore.
 
 ## What gets created
 
 | Checkout | Cloudflare DNS | Firestore |
 |----------|----------------|-----------|
 | `userSlug: jsmith` | — | on user doc |
-| `serverSlug: g76t4` | `g76t4.jsmith.pokerprobe.com` A → `173.70.205.120` | `guacamoleUrl`, `hostname`, `ip`, `active` |
+| `serverSlug: g76t4` | `g76t4.jsmith.pokerprobe.com` A → server `ip` | `ip`, `originPort`, `guacamoleUrl`, `hostname`, `active` |
 
 Desktop URL (lab with port 8787):
 
@@ -66,14 +73,14 @@ https://g76t4.jsmith.pokerprobe.com:8787/myrtille
 
 ## Production (Hetzner later)
 
-| Lab | Production |
+| Lab (now) | Production |
 |-----|------------|
-| `PROVISION_ORIGIN_IP=173.70.205.120` | Hetzner VM public IP per server |
-| `PROVISION_ORIGIN_PORT=8787` | unset or `443` |
+| `config/provisioning` + per-server `ip` / `originPort` | Hetzner API writes VM IP onto each server record |
+| `originPort: 8787` | `443` or unset |
 | `PROVISION_DNS_PROXIED=false` | `true` (orange cloud) when origin is 443 |
 | `PROVISION_AUTO_ACTIVATE=true` | `false` until VM + Myrtille ready, then activate via API/script |
 
-When each Hetzner VM gets its own IP, auto-provision runs with that IP instead of the shared lab IP (future: pass IP from Hetzner API into the same function).
+When each Hetzner VM gets its own IP, update the server record (`ip`, optionally `originPort`) then run DNS provision — same Cloudflare path as today.
 
 ## Cancellation
 

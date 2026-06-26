@@ -16,7 +16,7 @@ export interface ProvisionConfig {
   dnsEnabled: boolean;
   cloudflareApiToken: string | null;
   cloudflareZoneId: string | null;
-  /** A record target — lab home IP or Hetzner VM IP */
+  /** A record target — optional env override when seeding Firestore defaults */
   originIp: string | null;
   /** Optional non-standard HTTPS port (e.g. 8787 lab port-forward) */
   originPort: number | null;
@@ -81,7 +81,6 @@ export function getProvisionConfigStatus(): ProvisionConfigStatus {
 
   if (!config.cloudflareApiToken) missing.push("CLOUDFLARE_API_TOKEN");
   if (!config.cloudflareZoneId) missing.push("CLOUDFLARE_ZONE_ID");
-  if (!config.originIp) missing.push("PROVISION_ORIGIN_IP");
 
   return {
     configured: missing.length === 0,

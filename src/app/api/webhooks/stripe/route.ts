@@ -14,6 +14,7 @@ import {
   terminateServerRecord,
 } from "@/lib/server-provision";
 import { getProvisionTagsForPlan } from "@/lib/sim-catalog";
+import { getProvisioningDefaults } from "@/lib/provision-defaults";
 import { generateServerSlug, buildServerHostPart } from "@/lib/server-hostname";
 import { getStripe, planFromPriceId } from "@/lib/stripe";
 import { subscriptionPeriodEnd } from "@/lib/stripe-billing";
@@ -106,6 +107,8 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     baremetal: "Bare Metal",
   };
 
+  const originDefaults = await getProvisioningDefaults();
+
   const server = await createServer({
     userId,
     userEmail: userEmail.toLowerCase(),
@@ -114,7 +117,8 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     plan,
     serverType,
     status: "pending",
-    ip: null,
+    ip: originDefaults.defaultOriginIp,
+    originPort: originDefaults.defaultOriginPort,
     hostname,
     serverSlug,
     userSlug,
@@ -130,7 +134,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   });
 
   console.log(
-    `[PROVISIONING NEEDED] serverId=${server.id} plan=${plan} userId=${userId} host=${hostname}.pokerprobe.com`
+    `[PROVISIONING NEEDED] serverId=${server.id} plan=${plan} userId=${userId} host=${hostname}.pokerprobe.com ip=${originDefaults.defaultOriginIp}:${originDefaults.defaultOriginPort ?? 443}`
   );
 
   try {

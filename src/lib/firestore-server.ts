@@ -8,7 +8,7 @@ import {
 } from "./firestore";
 import { getFirestoreConfig } from "./firestore-env";
 import { buildServerHostPart, buildMyrtilleDesktopUrl } from "./server-hostname";
-import { getProvisionConfig } from "./provision-config";
+import { resolveServerOrigin } from "./provision-defaults";
 import {
   isReservedUserSlug,
   userSlugDuplicateCandidates,
@@ -34,6 +34,8 @@ export interface Server {
   serverType: ServerType;
   status: ServerStatus;
   ip: string | null;
+  /** HTTPS port for Myrtille desktop URL (null or 443 = standard) */
+  originPort?: number | null;
   hostname: string | null;
   /** Short server id for subdomain, e.g. g76t4 → g76t4.{userSlug}.pokerprobe.com */
   serverSlug: string | null;
@@ -311,6 +313,7 @@ export type ProvisionServerPatch = Partial<
     | "username"
     | "hetznerServerId"
     | "ip"
+    | "originPort"
     | "label"
     | "notes"
     | "installedSims"
@@ -319,15 +322,18 @@ export type ProvisionServerPatch = Partial<
 >;
 
 /** Default host + Myrtille URL from slugs when operator activates a server. */
-export function defaultProvisionHostFields(
-  server: Pick<Server, "serverSlug" | "userSlug" | "hostname" | "guacamoleUrl">
-): { hostname: string; guacamoleUrl: string } | null {
+export async function defaultProvisionHostFields(
+  server: Pick<
+    Server,
+    "serverSlug" | "userSlug" | "hostname" | "guacamoleUrl" | "ip" | "originPort"
+  >
+): Promise<{ hostname: string; guacamoleUrl: string } | null> {
   if (!server.serverSlug || !server.userSlug) {
     return null;
   }
 
   const hostname = buildServerHostPart(server.serverSlug, server.userSlug);
-  const { originPort } = getProvisionConfig();
+  const { originPort } = await resolveServerOrigin(server);
   const guacamoleUrl =
     server.guacamoleUrl ??
     buildMyrtilleDesktopUrl(server.serverSlug, server.userSlug, {
@@ -350,11 +356,13 @@ export async function provisionServerRecord(
   const data: Record<string, unknown> = { ...patch };
 
   if (patch.status === "active") {
-    const defaults = defaultProvisionHostFields({
+    const defaults = await defaultProvisionHostFields({
       serverSlug: (patch.serverSlug ?? existing.serverSlug) as string | null,
       userSlug: (patch.userSlug ?? existing.userSlug) as string | null,
       hostname: (patch.hostname ?? existing.hostname) as string | null,
       guacamoleUrl: (patch.guacamoleUrl ?? existing.guacamoleUrl) as string | null,
+      ip: (patch.ip ?? existing.ip) as string | null,
+      originPort: (patch.originPort ?? existing.originPort) as number | null | undefined,
     });
     if (defaults) {
       if (!patch.hostname && !existing.hostname) {

@@ -1,14 +1,15 @@
 import { deleteDnsRecord, upsertDnsARecord } from "@/lib/cloudflare-dns";
+import { getServerById, updateServer, type Server } from "@/lib/firestore-server";
 import {
   assertProvisionConfigReady,
   getProvisionConfig,
   getProvisionConfigStatus,
 } from "@/lib/provision-config";
+import { resolveServerOrigin } from "@/lib/provision-defaults";
 import {
   buildMyrtilleDesktopUrl,
   buildServerHostPart,
 } from "@/lib/server-hostname";
-import { updateServer, type Server } from "@/lib/firestore-server";
 
 export interface AutoProvisionInput {
   serverId: string;
@@ -23,13 +24,15 @@ export interface AutoProvisionResult {
   desktopUrl?: string;
   dnsRecordId?: string;
   activated?: boolean;
+  ip?: string;
+  originPort?: number | null;
 }
 
 export function isAutoProvisionEnabled(): boolean {
   return getProvisionConfigStatus().configured;
 }
 
-/** DNS + desktop URL after checkout (lab: fixed IP; prod: Hetzner IP when ready). */
+/** DNS + desktop URL after checkout (origin IP/port from server record or Firestore defaults). */
 export async function autoProvisionServerDesktop(
   input: AutoProvisionInput
 ): Promise<AutoProvisionResult> {
@@ -45,6 +48,23 @@ export async function autoProvisionServerDesktop(
     };
   }
 
+  const server = await getServerById(input.serverId);
+  if (!server) {
+    return { skipped: true, reason: `Server not found: ${input.serverId}` };
+  }
+
+  const origin = await resolveServerOrigin(server);
+  if (!origin.ip) {
+    return { skipped: true, reason: "No origin IP on server or in config/provisioning" };
+  }
+
+  if (!server.ip || server.originPort == null) {
+    await updateServer(input.serverId, {
+      ip: origin.ip,
+      originPort: origin.originPort,
+    });
+  }
+
   const config = assertProvisionConfigReady();
   const hostname = buildServerHostPart(input.serverSlug, input.userSlug);
 
@@ -54,21 +74,22 @@ export async function autoProvisionServerDesktop(
     serverSlug: input.serverSlug,
     userSlug: input.userSlug,
     apexDomain: config.apexDomain,
-    ip: config.originIp!,
+    ip: origin.ip,
     proxied: config.dnsProxied,
   });
 
   const desktopUrl = buildMyrtilleDesktopUrl(input.serverSlug, input.userSlug, {
-    port: config.originPort,
+    port: origin.originPort,
   });
 
   const patch: Partial<Server> = {
     hostname,
+    ip: origin.ip,
+    originPort: origin.originPort,
     guacamoleUrl: desktopUrl,
-    ip: config.originIp,
     cloudflareDnsRecordId: dns.recordId,
-    notes: `DNS ${dns.created ? "created" : "updated"} ${dns.fqdn} → ${config.originIp}${
-      config.originPort ? `:${config.originPort}` : ""
+    notes: `DNS ${dns.created ? "created" : "updated"} ${dns.fqdn} → ${origin.ip}${
+      origin.originPort ? `:${origin.originPort}` : ""
     } at ${new Date().toISOString()}`,
   };
 
@@ -84,6 +105,8 @@ export async function autoProvisionServerDesktop(
   console.log("[AUTO PROVISION]", {
     serverId: input.serverId,
     fqdn: dns.fqdn,
+    ip: origin.ip,
+    originPort: origin.originPort,
     desktopUrl,
     dnsRecordId: dns.recordId,
     activated: config.autoActivate,
@@ -95,6 +118,8 @@ export async function autoProvisionServerDesktop(
     desktopUrl,
     dnsRecordId: dns.recordId,
     activated: config.autoActivate,
+    ip: origin.ip,
+    originPort: origin.originPort,
   };
 }
 
