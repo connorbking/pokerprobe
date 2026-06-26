@@ -1,6 +1,7 @@
 "use client";
 
 import { AuthProvider } from "@/context/AuthContext";
+import { DevToolsProvider } from "@/context/DevToolsContext";
 import { PublicConfigProvider } from "@/context/PublicConfigContext";
 import type { PublicRuntimeConfig } from "@/lib/public-config";
 
@@ -13,7 +14,9 @@ export function Providers({
 }) {
   return (
     <PublicConfigProvider config={config}>
-      <AuthProvider firebaseConfig={config.firebase}>{children}</AuthProvider>
+      <AuthProvider firebaseConfig={config.firebase}>
+        <DevToolsProvider>{children}</DevToolsProvider>
+      </AuthProvider>
     </PublicConfigProvider>
   );
 }

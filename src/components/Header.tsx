@@ -3,6 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useAuth } from "@/context/AuthContext";
+import { DevToolsLauncher } from "@/components/DevToolsLauncher";
 import { siteConfig, navLinks } from "@/lib/config";
 
 export function Header() {
@@ -45,6 +46,7 @@ export function Header() {
         <div className="flex items-center gap-3">
           {!loading && user ? (
             <>
+              <DevToolsLauncher />
               <Link
                 href="/dashboard"
                 className="hidden text-sm text-gray-300 transition hover:text-white sm:block"

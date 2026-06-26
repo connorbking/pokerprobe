@@ -23,10 +23,13 @@ function getFirebasePublicConfig(): FirebasePublicConfig {
 
 /** Read public config from Cloudflare runtime env (server components & API routes). */
 export function getPublicRuntimeConfig(): PublicRuntimeConfig {
+  const manageFlag = env("ALLOW_MANAGE_BEFORE_ONLINE");
   return {
     firebase: getFirebasePublicConfig(),
     stripePublishableKey:
       env("NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY") ||
       env("STRIPE_PUBLISHABLE_KEY"),
+    // Default true until provisioning marks servers Online; set ALLOW_MANAGE_BEFORE_ONLINE=false to enforce.
+    allowManageBeforeOnline: manageFlag !== "false",
   };
 }

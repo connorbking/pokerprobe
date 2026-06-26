@@ -10,6 +10,7 @@ import {
   type PlanId,
   type ServerType,
 } from "@/lib/firestore-server";
+import { getProvisionTagsForPlan } from "@/lib/sim-catalog";
 import { getStripe, planFromPriceId } from "@/lib/stripe";
 
 function logManualProvisioning(event: Stripe.Event) {
@@ -110,6 +111,8 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     provisionedAt: null,
     canceledAt: null,
     notes: "",
+    provisionTags: getProvisionTagsForPlan(plan),
+    installedSims: [],
   });
 
   console.log(

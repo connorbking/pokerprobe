@@ -41,6 +41,10 @@ export interface Server {
   storageUsedGb?: number | null;
   activeVcpus?: number | null;
   uptimeSeconds?: number | null;
+  /** Provisioning tags for sim install automation (Hetzner labels / cloud-init) */
+  provisionTags?: string[];
+  /** Sim programs reported installed on the server */
+  installedSims?: string[];
 }
 
 export interface FirestoreUser {
@@ -48,6 +52,7 @@ export interface FirestoreUser {
   email: string;
   stripeCustomerId: string | null;
   createdAt: string;
+  isAdmin?: boolean;
 }
 
 function getFirestoreEnv() {
@@ -85,6 +90,17 @@ export async function getServerById(serverId: string): Promise<Server | null> {
   const { projectId, token } = await getToken();
   const doc = await firestoreGet(projectId, `servers/${serverId}`, token);
   return doc ? docToServer(doc) : null;
+}
+
+export async function getServerForUser(
+  serverId: string,
+  userId: string
+): Promise<Server | null> {
+  const server = await getServerById(serverId);
+  if (!server || server.userId !== userId) {
+    return null;
+  }
+  return server;
 }
 
 export async function createServer(
@@ -126,7 +142,7 @@ export async function upsertUser(
   const existing = await firestoreGet(projectId, `users/${uid}`, token);
 
   if (existing) {
-    const patch: Record<string, unknown> = { email };
+    const patch: Record<string, unknown> = { email: email.toLowerCase() };
     if (stripeCustomerId) {
       patch.stripeCustomerId = stripeCustomerId;
     }
@@ -136,9 +152,10 @@ export async function upsertUser(
 
   const user: FirestoreUser = {
     uid,
-    email,
+    email: email.toLowerCase(),
     stripeCustomerId: stripeCustomerId ?? null,
     createdAt: new Date().toISOString(),
+    isAdmin: false,
   };
 
   await firestoreSet(
@@ -182,6 +199,50 @@ export async function getServersBySubscriptionId(
     token
   );
   return docs.map(docToServer);
+}
+
+function docToUser(data: Record<string, unknown>): FirestoreUser {
+  return data as unknown as FirestoreUser;
+}
+
+export async function getUserByUid(uid: string): Promise<FirestoreUser | null> {
+  const { projectId, token } = await getToken();
+  const doc = await firestoreGet(projectId, `users/${uid}`, token);
+  return doc ? docToUser(doc) : null;
+}
+
+export async function getUserByEmail(
+  email: string
+): Promise<FirestoreUser | null> {
+  const { projectId, token } = await getToken();
+  const docs = await firestoreQuery(
+    projectId,
+    "users",
+    "email",
+    email.toLowerCase(),
+    token
+  );
+  const user = docs[0];
+  return user ? docToUser(user) : null;
+}
+
+export async function setUserAdmin(uid: string, isAdmin: boolean): Promise<void> {
+  const { projectId, token } = await getToken();
+  await firestoreUpdate(projectId, `users/${uid}`, { isAdmin }, token);
+}
+
+export async function setUserAdminByEmail(
+  email: string,
+  isAdmin: boolean
+): Promise<FirestoreUser> {
+  const user = await getUserByEmail(email);
+  if (!user) {
+    throw new Error(
+      `No Firestore user found for ${email}. Sign in once so the account is created, then rerun.`
+    );
+  }
+  await setUserAdmin(user.uid, isAdmin);
+  return { ...user, isAdmin };
 }
 
 export async function updateUserStripeCustomerId(

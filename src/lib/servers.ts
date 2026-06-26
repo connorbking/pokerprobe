@@ -28,6 +28,20 @@ export function getServerDisplayStatus(
   }
 }
 
+export function isServerOnline(server: Pick<Server, "status">): boolean {
+  return server.status === "active";
+}
+
+export function canAccessServerManage(
+  server: Pick<Server, "status">,
+  options: { allowBeforeOnline?: boolean } = {}
+): boolean {
+  if (isServerOnline(server)) {
+    return true;
+  }
+  return options.allowBeforeOnline === true;
+}
+
 export function isVisibleServerStatus(status: ServerStatus): boolean {
   return status !== "terminated";
 }

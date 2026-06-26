@@ -13,6 +13,8 @@ export type FirebasePublicConfig = {
 export type PublicRuntimeConfig = {
   firebase: FirebasePublicConfig;
   stripePublishableKey: string;
+  /** When true, Manage server is clickable before status is Online (testing / preview) */
+  allowManageBeforeOnline: boolean;
 };
 
 export function isFirebaseConfigConfigured(
