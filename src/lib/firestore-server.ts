@@ -9,8 +9,9 @@ import {
 import { getFirestoreConfig } from "./firestore-env";
 import {
   buildServerHostPart,
-  buildMyrtilleDesktopUrl,
   generateServerSlug,
+  normalizeDesktopPort,
+  resolveGuacamoleUrl,
 } from "./server-hostname";
 import { resolveServerOrigin } from "./provision-defaults";
 import {
@@ -92,7 +93,17 @@ async function getToken(): Promise<{ projectId: string; token: string }> {
 }
 
 function docToServer(data: Record<string, unknown>): Server {
-  return data as unknown as Server;
+  const server = data as unknown as Server;
+  const originPort = normalizeDesktopPort(server.originPort);
+  return {
+    ...server,
+    originPort,
+    guacamoleUrl: resolveGuacamoleUrl({
+      serverSlug: server.serverSlug,
+      guacamoleUrl: server.guacamoleUrl,
+      originPort,
+    }),
+  };
 }
 
 export function generateServerId(): string {
@@ -365,11 +376,11 @@ export async function defaultProvisionHostFields(
 
   const hostname = buildServerHostPart(server.serverSlug);
   const { originPort } = await resolveServerOrigin(server);
-  const guacamoleUrl =
-    server.guacamoleUrl ??
-    buildMyrtilleDesktopUrl(server.serverSlug, {
-      port: originPort,
-    });
+  const guacamoleUrl = resolveGuacamoleUrl({
+    serverSlug: server.serverSlug,
+    guacamoleUrl: server.guacamoleUrl,
+    originPort,
+  })!;
 
   return { hostname, guacamoleUrl };
 }

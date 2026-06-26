@@ -2,6 +2,7 @@ import { firestoreGet, firestoreSet, getAccessToken } from "@/lib/firestore";
 import { getFirestoreConfig } from "@/lib/firestore-env";
 import { getProvisionConfig } from "@/lib/provision-config";
 import type { Server } from "@/lib/firestore-server";
+import { normalizeDesktopPort } from "@/lib/server-hostname";
 
 /** Lab fallback when Firestore config is missing and env is unset */
 export const LAB_FALLBACK_ORIGIN_IP = "173.70.205.120";
@@ -43,7 +44,7 @@ function envOriginFallback(): ServerOrigin {
 function docToDefaults(data: Record<string, unknown>): ProvisioningDefaults {
   return {
     defaultOriginIp: String(data.defaultOriginIp ?? LAB_FALLBACK_ORIGIN_IP),
-    defaultOriginPort: parsePort(data.defaultOriginPort),
+    defaultOriginPort: normalizeDesktopPort(parsePort(data.defaultOriginPort)),
     updatedAt: String(data.updatedAt ?? new Date().toISOString()),
   };
 }
@@ -105,13 +106,13 @@ export async function resolveServerOrigin(
   if (server.ip) {
     return {
       ip: server.ip,
-      originPort: server.originPort ?? null,
+      originPort: normalizeDesktopPort(server.originPort),
     };
   }
 
   const defaults = await getProvisioningDefaults();
   return {
     ip: defaults.defaultOriginIp,
-    originPort: defaults.defaultOriginPort,
+    originPort: normalizeDesktopPort(defaults.defaultOriginPort),
   };
 }
