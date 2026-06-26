@@ -7,8 +7,10 @@ Myrtille works over **HTTP** behind nginx. Browsers need **HTTPS** for the Poker
 ```text
 Browser ──HTTPS (Cloudflare Universal SSL)──► Cloudflare edge
 Cloudflare ──HTTPS (your origin cert)──► nginx :443
-nginx ──HTTP──► Win11 Myrtille :80
+nginx ──HTTP──► Win11 IIS :80 /myrtille (LAN only — no router forward to Win11)
 ```
+
+Public URL: `https://{serverSlug}.pokerprobe.com/myrtille` → nginx proxies the full `/myrtille/...` path to `http://10.80.30.139:80`.
 
 Origin certificates in `/etc/ssl/cloudflare/` are **not** trusted by browsers directly. They only matter between Cloudflare and nginx.
 
@@ -77,14 +79,41 @@ Grey cloud = browser hits your origin directly = self-signed / wrong cert / HSTS
 
 Recommended lab path: **Proxied + Full** with existing `/etc/ssl/cloudflare/` files.
 
-## Step 5 — nginx
+## Step 5 — nginx (subdomain → Myrtille)
 
-Use `docs/nginx-pokerprobe.conf`:
+Each desktop hostname must have a `server` block that proxies **`/myrtille`** to Win11:
 
-- **Full / Full (strict):** desktop **443** block with `ssl_certificate` paths (already set)
-- **Flexible:** desktop **80** block proxies to Myrtille (already set)
+```nginx
+server {
+    listen 443 ssl http2;
+    server_name grlnofp8.pokerprobe.com;   # or regex for all 8-char slugs
 
-Router: forward **443** → nginx (drop `:8787` from public URLs).
+    ssl_certificate     /etc/ssl/cloudflare/pokerprobe.com.crt;
+    ssl_certificate_key /etc/ssl/cloudflare/pokerprobe.com.key;
+
+    location /myrtille {
+        proxy_pass http://10.80.30.139:80;   # Win11 IIS Myrtille
+        proxy_set_header Host 10.80.30.139;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+    }
+
+    location = / {
+        return 302 /myrtille/;
+    }
+}
+```
+
+Ready-made configs:
+
+| File | When to use |
+|------|-------------|
+| `docs/nginx-slug.example.conf` | One server (e.g. `grlnofp8`) — **recommended if connorking/daid already on nginx** |
+| `docs/nginx-pokerprobe-desktop.conf` | All 8-char slugs via regex |
+| `docs/nginx-pokerprobe.conf` | Desktop + www on a fresh nginx host |
+
+Router: forward **443** → nginx (not 8787 → Win11).
 
 ## Step 6 — PokerProbe URLs
 
@@ -119,4 +148,5 @@ Browser should show padlock (via Cloudflare). Myrtille login page over **https:/
 | 525 SSL handshake failed | nginx not listening 443 or wrong cert path |
 | 526 Invalid SSL certificate | Use **Full** not strict, or add hostname to origin cert |
 | Redirect to www | Old nginx config without desktop `server_name` block |
+| Redirect to connorking.com (or wrong site) | Desktop block not in `sites-enabled`; connorking is `default_server` on :443 |
 | Myrtille loads on HTTP but not HTTPS | Enable orange cloud + use 443 nginx block |

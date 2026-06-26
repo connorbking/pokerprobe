@@ -14,7 +14,7 @@ On **`checkout.session.completed`**, when enabled, PokerProbe:
 - **`config/provisioning`** — platform defaults (auto-created on first checkout)
 - **`servers/{id}.ip`** and **`servers/{id}.originPort`** — set on each checkout
 
-Built-in fallbacks when the config doc does not exist yet: `173.70.205.120` / `8787`. Optional env vars `PROVISION_ORIGIN_IP` and `PROVISION_ORIGIN_PORT` only apply when seeding that doc.
+Built-in fallbacks when the config doc does not exist yet: `173.70.205.120` / no port (443 via Cloudflare). Optional env vars `PROVISION_ORIGIN_IP` and `PROVISION_ORIGIN_PORT` only apply when seeding that doc.
 
 Set these in **Cloudflare Workers → pokerprobe → Settings → Variables and secrets**:
 
@@ -64,8 +64,8 @@ https://k7m2p9xq.pokerprobe.com/myrtille
 ## Test flow
 
 1. Set env vars above on the **deployed Worker** (Redeploy or Retry if needed)
-2. Ensure Myrtille is reachable at `https://173.70.205.120:8787/myrtille` (or LAN test first)
-3. Router: forward **8787** → Win11 IIS **443** (or whatever IIS uses)
+2. Ensure Myrtille is reachable at `https://{serverSlug}.pokerprobe.com/myrtille` (orange cloud + nginx)
+3. Router: forward **443** → nginx (not directly to Win11)
 4. Complete a **Stripe test checkout** on your account
 5. Check Cloudflare DNS for new `*.youruser.pokerprobe.com` record
 6. Dashboard → **Manage server** → **Desktop** tab
@@ -75,7 +75,7 @@ https://k7m2p9xq.pokerprobe.com/myrtille
 | Lab (now) | Production |
 |-----|------------|
 | `config/provisioning` + per-server `ip` / `originPort` | Hetzner API writes VM IP onto each server record |
-| `originPort: 8787` | `443` or unset |
+| `originPort: null` | `443` or unset (Cloudflare proxied) |
 | `PROVISION_DNS_PROXIED=false` | `true` (orange cloud) when origin is 443 |
 | `PROVISION_AUTO_ACTIVATE=true` | `false` until VM + Myrtille ready, then activate via API/script |
 

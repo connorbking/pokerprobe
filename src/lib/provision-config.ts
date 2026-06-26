@@ -18,7 +18,7 @@ export interface ProvisionConfig {
   cloudflareZoneId: string | null;
   /** A record target — optional env override when seeding Firestore defaults */
   originIp: string | null;
-  /** Optional non-standard HTTPS port (e.g. 8787 lab port-forward) */
+  /** Optional non-standard HTTPS port (lab only; omit for Cloudflare :443) */
   originPort: number | null;
   /** Orange-cloud proxy — off for non-443 lab ports */
   dnsProxied: boolean;

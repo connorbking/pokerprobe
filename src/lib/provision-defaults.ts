@@ -5,7 +5,7 @@ import type { Server } from "@/lib/firestore-server";
 
 /** Lab fallback when Firestore config is missing and env is unset */
 export const LAB_FALLBACK_ORIGIN_IP = "173.70.205.120";
-export const LAB_FALLBACK_ORIGIN_PORT = 8787;
+export const LAB_FALLBACK_ORIGIN_PORT: number | null = null;
 
 const CONFIG_DOC_PATH = "config/provisioning";
 
@@ -43,7 +43,7 @@ function envOriginFallback(): ServerOrigin {
 function docToDefaults(data: Record<string, unknown>): ProvisioningDefaults {
   return {
     defaultOriginIp: String(data.defaultOriginIp ?? LAB_FALLBACK_ORIGIN_IP),
-    defaultOriginPort: parsePort(data.defaultOriginPort) ?? LAB_FALLBACK_ORIGIN_PORT,
+    defaultOriginPort: parsePort(data.defaultOriginPort),
     updatedAt: String(data.updatedAt ?? new Date().toISOString()),
   };
 }
