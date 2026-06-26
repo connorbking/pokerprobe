@@ -9,7 +9,7 @@ export const siteConfig = {
     "Dedicated Windows servers sized for Flopzilla, ICMIZER, HRC, PioSolver, and GTO+ — from overnight postflop solves to 512 GB preflop farms.",
   supportEmail: "support@pokerprobe.com",
   provisioningNote:
-    "Servers are set up manually by our team within 24 hours of subscription.",
+    "Servers are activated in Firestore within 24 hours of subscription.",
   provisioningHours: "24 hours",
 };
 

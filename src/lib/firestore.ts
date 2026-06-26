@@ -256,3 +256,49 @@ export async function firestoreQuery(
     .filter((row) => row.document?.fields)
     .map((row) => decodeFields(row.document!.fields!));
 }
+
+export async function firestoreListCollection(
+  projectId: string,
+  collection: string,
+  token: string,
+  filter?: { field: string; value: string }
+): Promise<Record<string, unknown>[]> {
+  const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents:runQuery`;
+
+  const structuredQuery: Record<string, unknown> = {
+    from: [{ collectionId: collection }],
+  };
+
+  if (filter) {
+    structuredQuery.where = {
+      fieldFilter: {
+        field: { fieldPath: filter.field },
+        op: "EQUAL",
+        value: { stringValue: filter.value },
+      },
+    };
+  }
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ structuredQuery }),
+  });
+
+  if (!res.ok) {
+    throw new Error(
+      `Firestore LIST ${collection} failed: ${await res.text()}`
+    );
+  }
+
+  const rows = (await res.json()) as Array<{
+    document?: { fields?: Record<string, FirestoreValue> };
+  }>;
+
+  return rows
+    .filter((row) => row.document?.fields)
+    .map((row) => decodeFields(row.document!.fields!));
+}

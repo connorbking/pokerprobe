@@ -14,9 +14,9 @@ export function Footer() {
               <Image
                 src="/logo.png"
                 alt={siteConfig.name}
-                width={32}
-                height={32}
-                className="rounded-full"
+                width={36}
+                height={36}
+                className="h-9 w-9 object-contain"
               />
               <span className="font-display text-lg font-bold text-white">
                 {siteConfig.name}

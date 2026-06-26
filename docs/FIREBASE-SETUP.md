@@ -24,6 +24,8 @@ Set the same variables in **Cloudflare Workers → Settings → Variables and se
 
 The dashboard reads server records from Firestore. This uses a **service account**, separate from client login.
 
+On **first sign-in**, the app creates a `users/{uid}` document and assigns a unique **`userSlug`** from the email local-part (e.g. `john.smith@…` → `john-smith`). This happens in `/api/auth/session` — no separate signup step.
+
 ### Local (`.env.local`)
 
 ```

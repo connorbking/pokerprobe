@@ -17,6 +17,7 @@ export async function GET(request: Request) {
       user: {
         uid: authUser.uid,
         email: authUser.email,
+        userSlug: record?.userSlug ?? null,
         isAdmin,
       },
       isAdmin,

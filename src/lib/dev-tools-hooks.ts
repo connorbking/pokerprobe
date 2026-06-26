@@ -43,6 +43,16 @@ export function useDevToolsPreviewMode(server: Pick<Server, "status">): boolean 
   );
 }
 
+export function useAdminImmediateCancelEnabled(): boolean {
+  const { isAdmin, toggles, devToolsActive } = useDevTools();
+
+  return (
+    devToolsActive &&
+    isAdmin &&
+    toggles.immediatelyCancelSubscriptions
+  );
+}
+
 export function useDevLogging() {
   const { toggles, devToolsActive, isAdmin } = useDevTools();
 

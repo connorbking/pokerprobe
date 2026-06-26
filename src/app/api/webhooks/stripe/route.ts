@@ -6,12 +6,17 @@ import {
   getServersBySubscriptionId,
   updateServer,
   upsertUser,
-  updateUserStripeCustomerId,
   type PlanId,
   type ServerType,
 } from "@/lib/firestore-server";
+import {
+  autoProvisionServerDesktop,
+  terminateServerRecord,
+} from "@/lib/server-provision";
 import { getProvisionTagsForPlan } from "@/lib/sim-catalog";
+import { generateServerSlug, buildServerHostPart } from "@/lib/server-hostname";
 import { getStripe, planFromPriceId } from "@/lib/stripe";
+import { subscriptionPeriodEnd } from "@/lib/stripe-billing";
 
 function logManualProvisioning(event: Stripe.Event) {
   const timestamp = new Date().toISOString();
@@ -84,8 +89,15 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   const plan = planSlug as PlanId;
   const serverType: ServerType = plan === "baremetal" ? "dedicated" : "cloud";
 
-  await upsertUser(userId, userEmail, customerId);
-  await updateUserStripeCustomerId(userId, customerId);
+  const user = await upsertUser(userId, userEmail, customerId);
+  const userSlug = user.userSlug;
+  if (!userSlug) {
+    console.error("[WEBHOOK] checkout.session.completed failed to assign userSlug");
+    return;
+  }
+
+  const serverSlug = generateServerSlug();
+  const hostname = buildServerHostPart(serverSlug, userSlug);
 
   const planLabels: Record<PlanId, string> = {
     starter: "Study",
@@ -96,14 +108,16 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
 
   const server = await createServer({
     userId,
-    userEmail,
+    userEmail: userEmail.toLowerCase(),
     stripeSubscriptionId: subscriptionId,
     stripePriceId: priceId,
     plan,
     serverType,
     status: "pending",
     ip: null,
-    hostname: null,
+    hostname,
+    serverSlug,
+    userSlug,
     username: null,
     guacamoleUrl: null,
     hetznerServerId: null,
@@ -116,8 +130,26 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   });
 
   console.log(
-    `[PROVISIONING NEEDED] serverId=${server.id} plan=${plan} userId=${userId}`
+    `[PROVISIONING NEEDED] serverId=${server.id} plan=${plan} userId=${userId} host=${hostname}.pokerprobe.com`
   );
+
+  try {
+    const provision = await autoProvisionServerDesktop({
+      serverId: server.id,
+      serverSlug,
+      userSlug,
+    });
+    if (provision.skipped) {
+      console.log("[AUTO PROVISION] skipped:", provision.reason);
+    }
+  } catch (err) {
+    console.error("[AUTO PROVISION] failed:", err);
+    await updateServer(server.id, {
+      notes: `Auto DNS provision failed: ${
+        err instanceof Error ? err.message : String(err)
+      }`,
+    });
+  }
 
   logManualProvisioning({
     type: "checkout.session.completed",
@@ -129,40 +161,34 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
   const servers = await getServersBySubscriptionId(subscription.id);
   if (servers.length === 0) return;
 
-  const status = subscription.status;
-  let nextStatus: "active" | "suspended" | null = null;
-
-  if (status === "past_due" || status === "unpaid") {
-    nextStatus = "suspended";
-  } else if (status === "active") {
-    nextStatus = "active";
-  }
-
-  if (!nextStatus) return;
+  const periodEndUnix = subscriptionPeriodEnd(subscription);
+  const periodEnd = periodEndUnix
+    ? new Date(periodEndUnix * 1000).toISOString()
+    : null;
 
   for (const server of servers) {
     if (server.status === "terminated") continue;
 
-    if (nextStatus === "suspended") {
-      await updateServer(server.id, { status: "suspended" });
-    } else if (
-      nextStatus === "active" &&
-      server.status === "suspended"
-    ) {
-      await updateServer(server.id, { status: "active" });
+    const patch: Parameters<typeof updateServer>[1] = {
+      cancelAtPeriodEnd: subscription.cancel_at_period_end,
+      currentPeriodEnd: periodEnd,
+    };
+
+    if (subscription.status === "past_due" || subscription.status === "unpaid") {
+      patch.status = "suspended";
+    } else if (subscription.status === "active" && server.status === "suspended") {
+      patch.status = "active";
     }
+
+    await updateServer(server.id, patch);
   }
 }
 
 async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
   const servers = await getServersBySubscriptionId(subscription.id);
-  const canceledAt = new Date().toISOString();
 
   for (const server of servers) {
-    await updateServer(server.id, {
-      status: "terminated",
-      canceledAt,
-    });
+    await terminateServerRecord(server);
   }
 }
 

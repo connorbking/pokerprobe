@@ -1,5 +1,5 @@
 import type { PlanId, Server } from "@/lib/firestore-server";
-import { siteConfig } from "@/lib/config";
+import { resolveServerFqdn } from "@/lib/server-hostname";
 
 export interface PlanResourceSpec {
   vcpu: number;
@@ -23,17 +23,16 @@ export function isServerSettingUp(server: Pick<Server, "status">): boolean {
 }
 
 export function getServerAddress(server: Server): string {
+  const fqdn = resolveServerFqdn(server.hostname, server.serverSlug, server.userSlug);
+  if (fqdn) {
+    return fqdn;
+  }
+
   if (isServerSettingUp(server)) {
-    return "Assigning Subdomain";
+    return "Assigning subdomain";
   }
 
-  if (server.hostname) {
-    return server.hostname.includes(".")
-      ? server.hostname
-      : `${server.hostname}.${siteConfig.serverDomain}`;
-  }
-
-  return "Assigning Subdomain";
+  return "Assigning subdomain";
 }
 
 export function formatUptime(server: Server): string {

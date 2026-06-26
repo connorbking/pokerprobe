@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { SESSION_COOKIE } from "@/lib/firebase/config";
 import { getServerUserFromRequest } from "@/lib/firebase/server-auth";
 import { verifyFirebaseToken } from "@/lib/firebase/verify-token";
+import { syncFirestoreUserOnAuth } from "@/lib/firestore-server";
 
 const cookieOptions = {
   httpOnly: true,
@@ -13,6 +14,15 @@ const cookieOptions = {
 
 export async function GET(request: Request) {
   const user = await getServerUserFromRequest(request);
+
+  if (user?.uid && user.email) {
+    try {
+      await syncFirestoreUserOnAuth(user.uid, user.email);
+    } catch (err) {
+      console.error("[auth/session GET] Firestore user sync failed:", err);
+    }
+  }
+
   return NextResponse.json({ user: user ?? null });
 }
 
@@ -32,6 +42,12 @@ export async function POST(request: Request) {
   const user = await verifyFirebaseToken(idToken);
   if (!user) {
     return NextResponse.json({ error: "Invalid token" }, { status: 401 });
+  }
+
+  try {
+    await syncFirestoreUserOnAuth(user.uid, user.email);
+  } catch (err) {
+    console.error("[auth/session POST] Firestore user sync failed:", err);
   }
 
   const response = NextResponse.json({ ok: true, user });

@@ -5,7 +5,8 @@ export type DevToolToggleId =
   | "allowManageBeforeOnline"
   | "mockServerOnline"
   | "showServerDebugInfo"
-  | "verboseClientLogging";
+  | "verboseClientLogging"
+  | "immediatelyCancelSubscriptions";
 
 export interface DevToolToggleDefinition {
   id: DevToolToggleId;
@@ -39,6 +40,13 @@ export const DEV_TOOL_TOGGLES: DevToolToggleDefinition[] = [
     id: "verboseClientLogging",
     label: "Verbose client logging",
     description: "Log dev-tool and server API activity to the browser console.",
+    defaultValue: false,
+  },
+  {
+    id: "immediatelyCancelSubscriptions",
+    label: "Immediately cancel subscriptions",
+    description:
+      "Show an admin-only button on the Plan tab to cancel via Stripe and remove the server instantly (including DNS).",
     defaultValue: false,
   },
 ];

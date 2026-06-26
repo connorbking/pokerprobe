@@ -1,6 +1,38 @@
-# Manual Server Provisioning
+# Manual Server Provisioning (Firestore)
 
-PokerProbe does **not** auto-provision servers. After a customer subscribes, you set up each dedicated server by hand.
+PokerProbe stores **all customer server records in Firestore**. There is no JSON file to edit or redeploy.
+
+After a customer subscribes, the Stripe webhook creates a `servers/{serverId}` document with `status: "pending"`. Operators update that same record when infrastructure is ready — the customer dashboard reads it live via `/api/servers`.
+
+## Data model
+
+Collection: **`servers`**
+
+| Field | Description |
+|-------|-------------|
+| `id` | e.g. `srv_abc123` |
+| `userId` / `userEmail` | Firebase user |
+| `plan` | `starter` \| `pro` \| `elite` |
+| `status` | `pending` → `provisioning` → `active` (or `suspended` / `terminated`) |
+| `userSlug` | Owner namespace from email local-part, e.g. `jsmith` (unique; duplicates get `-2`, `-3`, …) |
+| `serverSlug` | Short per-server id, e.g. `g76t4` |
+| `hostname` | Host part `{serverSlug}.{userSlug}` → `g76t4.jsmith.pokerprobe.com` |
+| `guacamoleUrl` | Myrtille desktop URL, e.g. `https://g76t4.jsmith.pokerprobe.com/myrtille` |
+| `username` | Optional; SFTP/RDP username if needed |
+| `ip` | Internal/private IP (ops only; not shown as primary UX) |
+| `hetznerServerId` | Infrastructure ID |
+| `provisionTags` | Sim install tags (set automatically at checkout) |
+| `installedSims` | e.g. `["flopzilla", "piosolver"]` |
+| `provisionedAt` | ISO timestamp when marked `active` |
+| `label` | Customer-visible server name |
+
+Collection: **`users`** — one doc per Firebase uid (`userSlug`, `isAdmin`, `stripeCustomerId`, etc.)
+
+| Field | Description |
+|-------|-------------|
+| `userSlug` | Assigned on **first sign-in** from email local-part (e.g. `jsmith`); duplicates get `-2`, `-3`, … |
+
+View data: [Firebase Console → Firestore](https://console.firebase.google.com/project/pokerprobe-4c8f3/firestore)
 
 ## Workflow
 
@@ -8,98 +40,85 @@ PokerProbe does **not** auto-provision servers. After a customer subscribes, you
 
 When Stripe fires `checkout.session.completed`:
 
-- Check **Stripe Dashboard → Customers** for the new subscriber
-- Or review **Cloudflare Workers → pokerprobe → Logs** for `[MANUAL PROVISIONING]` entries
+- A Firestore server record is created automatically (`status: "pending"` initially)
+- If **`PROVISION_DNS_ENABLED=true`**, Cloudflare DNS + `guacamoleUrl` + `active` are applied automatically — see [AUTO-PROVISIONING.md](./AUTO-PROVISIONING.md)
+- Check **Cloudflare Workers → pokerprobe → Logs** for `[PROVISIONING NEEDED]` / `[AUTO PROVISION]`
+- Or list pending servers (see CLI below)
 
-### 2. Provision the server
+The customer sees the server tile immediately with placeholder stats.
 
-1. Spin up a Windows Server VPS matching their plan (Starter / Pro / Elite)
-2. Install RDP, .NET runtimes, and any baseline tools
-3. Send RDP credentials to the customer's email (password **never** goes in the repo)
+### 2. Provision infrastructure
 
-### 3. Register the server in the dashboard
+1. Create the Windows Server (Hetzner) matching the plan SKU
+2. Register DNS: `{serverSlug}.{userSlug}.pokerprobe.com` → server IP (or Cloudflare Tunnel)
+3. Install sims per `provisionTags` on the server record
 
-Edit `src/data/customer-servers.json` (one customer can have multiple servers):
+### 3. Activate in Firestore (no redeploy)
 
-```json
-{
-  "customer@example.com": [
-    {
-      "id": "server-1",
-      "label": "Primary solver box",
-      "status": "active",
-      "host": "123.45.67.89",
-      "username": "Administrator",
-      "plan": "Pro",
-      "provisionedAt": "2025-06-25"
-    }
-  ]
-}
-```
-
-For a second server on the same account, append to the array:
-
-```json
-{
-  "customer@example.com": [
-    { "id": "server-1", "status": "active", "host": "123.45.67.89", "plan": "Pro", "provisionedAt": "2025-06-25" },
-    { "id": "server-2", "status": "pending", "plan": "Starter", "notes": "Second server — provisioning" }
-  ]
-}
-```
-
-Redeploy to Cloudflare:
+From the project root with `.env.local` configured:
 
 ```bash
-npm run deploy
+# List servers awaiting setup
+npm run server-admin -- list --status pending
+
+# Inspect a record
+npm run server-admin -- get srv_abc123
+
+# Mark provisioning in progress (optional)
+npm run server-admin -- update srv_abc123 --status provisioning --notes "Hetzner VM created"
+
+# Go live — hostname + Myrtille URL auto-filled from slugs if omitted
+npm run server-admin -- activate srv_abc123 \
+  --username Administrator \
+  --installed-sims flopzilla,piosolver,hrc
 ```
 
-The customer will see host/username in their dashboard. Password stays in the email you sent.
+`activate` sets `status: "active"` and `provisionedAt` automatically.
 
-### 4. Pending state
+### 4. Pending / in progress
 
-If you've received payment but haven't finished setup yet:
-
-```json
-{
-  "customer@example.com": {
-    "status": "pending",
-    "plan": "Pro",
-    "notes": "VPS ordered, awaiting IP"
-  }
-}
-```
+While `pending` or `provisioning`, the dashboard shows red status and placeholder metrics. No deploy required when you change status.
 
 ### 5. Cancellation
 
-When a subscription is canceled (`customer.subscription.deleted`):
+`customer.subscription.deleted` webhook sets server `status: "terminated"` automatically.
 
-1. Suspend or decommission the VPS
-2. Update or remove their entry in `customer-servers.json`:
+To suspend for billing issues, Stripe `customer.subscription.updated` sets `suspended`. Decommission VPS manually and optionally:
 
-```json
-{
-  "customer@example.com": {
-    "status": "suspended",
-    "notes": "Canceled 2025-06-25"
-  }
-}
+```bash
+npm run server-admin -- update srv_abc123 --status terminated --notes "Decommissioned 2026-06-25"
 ```
 
-3. Redeploy
+## Health check
 
-## Stripe webhook on Cloudflare
+```bash
+curl https://www.pokerprobe.com/api/health/storage
+```
 
-In Stripe Dashboard → Webhooks, add:
+Both `hasProjectId` and `hasServiceAccount` must be `true`.
+
+## Stripe webhook
+
+In Stripe Dashboard → Webhooks:
 
 ```
 https://www.pokerprobe.com/api/webhooks/stripe
 ```
 
-Events to listen for:
+Events:
 
-- `checkout.session.completed`
-- `customer.subscription.updated`
-- `customer.subscription.deleted`
+- `checkout.session.completed` — creates Firestore server
+- `customer.subscription.updated` — active / suspended
+- `customer.subscription.deleted` — terminated
 
-Set `STRIPE_WEBHOOK_SECRET` in Cloudflare Worker variables.
+Set `STRIPE_WEBHOOK_SECRET` in Cloudflare Worker secrets.
+
+## Operator scripts
+
+| Script | Purpose |
+|--------|---------|
+| `npm run server-admin -- list` | List all servers |
+| `npm run server-admin -- get <id>` | Full server JSON |
+| `npm run server-admin -- activate <id> ...` | Mark server Online |
+| `npm run set-admin <email>` | Grant Firestore `isAdmin` |
+| `npm run test-firestore` | Verify Firestore connectivity |

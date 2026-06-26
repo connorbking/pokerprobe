@@ -8,7 +8,7 @@ Dedicated 24/7 server infrastructure for poker simulation workloads — [www.pok
 - **Tailwind CSS 4** — poker-themed dark/felt styling
 - **Firebase Auth** — Google and email/password sign-in
 - **Stripe** — subscription checkout & customer billing portal
-- **Manual provisioning** — servers are set up by hand (see [docs/MANUAL-PROVISIONING.md](docs/MANUAL-PROVISIONING.md))
+- **Firestore** — server records, users, permissions (see [docs/MANUAL-PROVISIONING.md](docs/MANUAL-PROVISIONING.md))
 
 ## Local Development
 
@@ -114,7 +114,7 @@ Checkout is **embedded** on `/dashboard/checkout/[planId]` — customers stay on
 
 See **[docs/MANUAL-PROVISIONING.md](docs/MANUAL-PROVISIONING.md)** for the operator workflow.
 
-Customer server records live in `src/data/customer-servers.json`. Edit, commit, and redeploy after provisioning each server.
+Server records live in **Firestore** (`servers` collection). Use `npm run server-admin` to list, inspect, and activate servers after checkout — no JSON files or redeploy needed for data updates.
 
 ## Pages
 

@@ -16,9 +16,9 @@ export function Header() {
           <Image
             src="/logo.png"
             alt={siteConfig.name}
-            width={36}
-            height={36}
-            className="rounded-full transition group-hover:brightness-110"
+            width={40}
+            height={40}
+            className="h-10 w-10 object-contain transition group-hover:brightness-110"
             priority
           />
           <div>

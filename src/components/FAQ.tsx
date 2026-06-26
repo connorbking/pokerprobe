@@ -9,7 +9,7 @@ const faqs = [
   },
   {
     q: "How fast is server provisioning?",
-    a: "After you subscribe, our team manually provisions your dedicated server within 24 hours. You'll receive RDP credentials by email, and connection details will appear in your dashboard.",
+    a: "After you subscribe, a server appears in your dashboard right away. Our team completes setup within 24 hours — you'll get a green Online status and a Connect button for browser access. No redeploy or manual JSON required.",
   },
   {
     q: "Can I upgrade or downgrade my plan?",

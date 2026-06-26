@@ -14,7 +14,9 @@
     "cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts",
     "setup-stripe": "node scripts/setup-stripe-products.mjs",
     "test-firestore": "node --experimental-strip-types scripts/test-firestore.mjs",
-    "set-admin": "node --experimental-strip-types scripts/set-admin.mjs"
+    "set-admin": "node --experimental-strip-types scripts/set-admin.mjs",
+    "server-admin": "node --experimental-strip-types scripts/server-admin.mjs",
+    "provision-dns": "node --experimental-strip-types scripts/provision-dns.mjs"
   },
   "dependencies": {
     "@stripe/react-stripe-js": "^6.6.0",

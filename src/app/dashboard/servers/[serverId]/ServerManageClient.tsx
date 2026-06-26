@@ -16,6 +16,7 @@ import {
 import { getServerAddress, getServerStatRows, isServerSettingUp } from "@/lib/server-display";
 import { getSimsForPlan, simNameFromTag } from "@/lib/sim-catalog";
 import { ServerLabelEditor } from "@/components/ServerLabelEditor";
+import { PlanPanel } from "@/components/PlanPanel";
 import {
   useCanAccessServerManage,
   useDevToolsPreviewMode,
@@ -28,6 +29,7 @@ export type ManageTab =
   | "files"
   | "activity"
   | "settings"
+  | "plan"
   | "terminal";
 
 const tabs: Array<{ id: ManageTab; label: string; description: string }> = [
@@ -36,6 +38,7 @@ const tabs: Array<{ id: ManageTab; label: string; description: string }> = [
   { id: "files", label: "Files", description: "SFTP file management" },
   { id: "activity", label: "Activity", description: "Recent server events" },
   { id: "settings", label: "Settings", description: "Name and preferences" },
+  { id: "plan", label: "Plan", description: "Subscription and billing" },
   { id: "terminal", label: "Terminal", description: "Command-line access" },
 ];
 
@@ -351,9 +354,13 @@ function TerminalPanel({ server }: { server: Server }) {
 function ServerManageView({
   server,
   onLabelUpdated,
+  onServerUpdated,
+  onServerTerminated,
 }: {
   server: Server;
   onLabelUpdated: (label: string) => void;
+  onServerUpdated: (patch: Partial<Server>) => void;
+  onServerTerminated: () => void;
 }) {
   const [activeTab, setActiveTab] = useState<ManageTab>("desktop");
   const displayStatus = getServerDisplayStatus(server);
@@ -451,6 +458,13 @@ function ServerManageView({
         {activeTab === "settings" && (
           <SettingsPanel server={server} onLabelUpdated={onLabelUpdated} />
         )}
+        {activeTab === "plan" && (
+          <PlanPanel
+            server={server}
+            onServerUpdated={onServerUpdated}
+            onServerTerminated={onServerTerminated}
+          />
+        )}
         {activeTab === "terminal" && <TerminalPanel server={server} />}
       </div>
 
@@ -546,7 +560,13 @@ export function ServerManageClient({ serverId }: { serverId: string }) {
   return (
     <ServerManageView
       server={server}
-      onLabelUpdated={(label) => setServer({ ...server, label })}
+      onLabelUpdated={(label) =>
+        setServer((current) => (current ? { ...current, label } : current))
+      }
+      onServerUpdated={(patch) =>
+        setServer((current) => (current ? { ...current, ...patch } : current))
+      }
+      onServerTerminated={() => router.replace("/dashboard")}
     />
   );
 }
