@@ -1,9 +1,9 @@
 "use client";
 
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { Suspense, useCallback, useEffect, useState } from "react";
-import type { AuthUser } from "@/lib/firebase/verify-token";
+import { useAuth } from "@/context/AuthContext";
 import { getFirebaseAuth } from "@/lib/firebase/client";
 import type { Server } from "@/lib/firestore-server";
 import { siteConfig } from "@/lib/config";
@@ -53,7 +53,9 @@ function NoServersMarketing() {
   );
 }
 
-function DashboardContent({ user }: { user: AuthUser }) {
+function DashboardContent() {
+  const { user, loading: authLoading } = useAuth();
+  const router = useRouter();
   const searchParams = useSearchParams();
   const success = searchParams.get("success");
   const canceled = searchParams.get("canceled");
@@ -62,7 +64,18 @@ function DashboardContent({ user }: { user: AuthUser }) {
   const [loadingServers, setLoadingServers] = useState(true);
   const [serversError, setServersError] = useState<string | null>(null);
 
+  const clearServers = useCallback(() => {
+    setServers([]);
+    setServersError(null);
+    setLoadingServers(false);
+  }, []);
+
   const loadServers = useCallback(async (options?: { silent?: boolean }) => {
+    if (!user?.uid) {
+      clearServers();
+      return;
+    }
+
     if (!options?.silent) {
       setLoadingServers(true);
     }
@@ -80,6 +93,11 @@ function DashboardContent({ user }: { user: AuthUser }) {
         headers,
         credentials: "same-origin",
       });
+
+      if (res.status === 401) {
+        clearServers();
+        return;
+      }
 
       if (!res.ok) {
         const data = (await res.json().catch(() => ({}))) as { error?: string };
@@ -100,14 +118,26 @@ function DashboardContent({ user }: { user: AuthUser }) {
         setLoadingServers(false);
       }
     }
-  }, []);
+  }, [user?.uid, clearServers]);
 
   useEffect(() => {
+    if (authLoading) return;
+    if (!user) {
+      clearServers();
+      router.replace("/signin?callbackUrl=/dashboard");
+    }
+  }, [authLoading, user, router, clearServers]);
+
+  useEffect(() => {
+    if (!user?.uid) {
+      clearServers();
+      return;
+    }
     void loadServers();
-  }, [loadServers, success]);
+  }, [user?.uid, success, clearServers, loadServers]);
 
   useEffect(() => {
-    if (!success) return;
+    if (!success || !user?.uid) return;
 
     const interval = setInterval(() => {
       void loadServers({ silent: true });
@@ -121,7 +151,7 @@ function DashboardContent({ user }: { user: AuthUser }) {
       clearInterval(interval);
       clearTimeout(timeout);
     };
-  }, [success, loadServers]);
+  }, [success, loadServers, user?.uid]);
 
   const visibleServers = servers.filter((s) => isVisibleServerStatus(s.status));
   const hasServers = visibleServers.length > 0;
@@ -141,6 +171,15 @@ function DashboardContent({ user }: { user: AuthUser }) {
       prev.map((s) => (s.id === serverId ? { ...s, label } : s))
     );
   };
+
+  if (authLoading || !user) {
+    return (
+      <div className="flex items-center gap-3 p-12 text-gray-400">
+        <Spinner />
+        {authLoading ? "Loading…" : "Redirecting…"}
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-12 sm:px-6">
@@ -248,10 +287,10 @@ function DashboardContent({ user }: { user: AuthUser }) {
   );
 }
 
-export function DashboardClient({ user }: { user: AuthUser }) {
+export function DashboardClient() {
   return (
     <Suspense fallback={<div className="p-12 text-gray-400">Loading…</div>}>
-      <DashboardContent user={user} />
+      <DashboardContent />
     </Suspense>
   );
 }

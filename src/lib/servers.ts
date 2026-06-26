@@ -11,21 +11,47 @@ export function getPlanLabel(plan: string): string {
   return PLAN_LABELS[plan] ?? plan;
 }
 
+export type ServerStatusLightColor = "green" | "red";
+
 export function getServerDisplayStatus(
   server: Pick<Server, "status">
-): { label: string; color: "gray" | "yellow" | "green" | "red" | "blue" } {
+): { label: string; color: ServerStatusLightColor } {
   switch (server.status) {
     case "active":
       return { label: "Online", color: "green" };
     case "pending":
-      return { label: "Pending setup", color: "yellow" };
+      return { label: "Pending setup", color: "red" };
     case "provisioning":
-      return { label: "Provisioning", color: "blue" };
+      return { label: "Setting up", color: "red" };
     case "suspended":
-      return { label: "Suspended", color: "red" };
+      return { label: "Cannot access", color: "red" };
     case "terminated":
-      return { label: "Terminated", color: "gray" };
+      return { label: "Offline", color: "red" };
   }
+}
+
+/** Status indicator: green when online, red when off or unreachable */
+export function getServerStatusLightColor(
+  server: Pick<Server, "status">,
+  options: { effectiveOnline?: boolean } = {}
+): ServerStatusLightColor {
+  if (options.effectiveOnline ?? server.status === "active") {
+    return "green";
+  }
+  return "red";
+}
+
+export function getServerStatusLabel(
+  server: Pick<Server, "status">,
+  options: { previewMode?: boolean; effectiveOnline?: boolean } = {}
+): string {
+  if (options.previewMode) {
+    return "Online (mocked)";
+  }
+  if (options.effectiveOnline ?? server.status === "active") {
+    return "Online";
+  }
+  return getServerDisplayStatus(server).label;
 }
 
 export function isServerOnline(server: Pick<Server, "status">): boolean {

@@ -1,11 +1,18 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import type { Server } from "@/lib/firestore-server";
+import { useAuth } from "@/context/AuthContext";
 import { getFirebaseAuth } from "@/lib/firebase/client";
 import { siteConfig } from "@/lib/config";
-import { getPlanLabel, getServerDisplayStatus } from "@/lib/servers";
+import {
+  getPlanLabel,
+  getServerDisplayStatus,
+  getServerStatusLabel,
+  getServerStatusLightColor,
+} from "@/lib/servers";
 import { getServerAddress, getServerStatRows, isServerSettingUp } from "@/lib/server-display";
 import { getSimsForPlan, simNameFromTag } from "@/lib/sim-catalog";
 import { ServerLabelEditor } from "@/components/ServerLabelEditor";
@@ -54,6 +61,9 @@ async function fetchServer(serverId: string): Promise<Server> {
   });
 
   const data = (await res.json()) as { server?: Server; error?: string };
+  if (res.status === 401) {
+    throw new Error("Sign in required");
+  }
   if (!res.ok || !data.server) {
     throw new Error(data.error ?? "Failed to load server");
   }
@@ -351,6 +361,8 @@ function ServerManageView({
   const canManage = useCanAccessServerManage(server);
   const previewMode = useDevToolsPreviewMode(server);
   const effectiveOnline = useEffectiveServerOnline(server);
+  const statusColor = getServerStatusLightColor(server, { effectiveOnline });
+  const statusLabel = getServerStatusLabel(server, { previewMode, effectiveOnline });
 
   if (!canManage) {
     return (
@@ -395,9 +407,14 @@ function ServerManageView({
           </h1>
           <p className="mt-2 text-sm text-gray-400">
             {getServerAddress(server)} ·{" "}
-            <span className="text-gray-300">
-              {effectiveOnline ? "Online" : displayStatus.label}
-              {previewMode && effectiveOnline ? " (mocked)" : ""}
+            <span className="inline-flex items-center gap-1.5 text-gray-300">
+              <span
+                className={`inline-block h-2 w-2 rounded-full ${
+                  statusColor === "green" ? "bg-green-500" : "bg-red-500"
+                }`}
+                aria-hidden="true"
+              />
+              {statusLabel}
             </span>
           </p>
         </div>
@@ -451,11 +468,24 @@ function ServerManageView({
 }
 
 export function ServerManageClient({ serverId }: { serverId: string }) {
+  const { user, loading: authLoading } = useAuth();
+  const router = useRouter();
   const [server, setServer] = useState<Server | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const clearServer = useCallback(() => {
+    setServer(null);
+    setError(null);
+    setLoading(false);
+  }, []);
+
   const load = useCallback(async () => {
+    if (!user?.uid) {
+      clearServer();
+      return;
+    }
+
     setLoading(true);
     setError(null);
     try {
@@ -466,11 +496,32 @@ export function ServerManageClient({ serverId }: { serverId: string }) {
     } finally {
       setLoading(false);
     }
-  }, [serverId]);
+  }, [serverId, user?.uid, clearServer]);
 
   useEffect(() => {
+    if (authLoading) return;
+    if (!user) {
+      clearServer();
+      router.replace(`/signin?callbackUrl=/dashboard/servers/${serverId}`);
+    }
+  }, [authLoading, user, router, serverId, clearServer]);
+
+  useEffect(() => {
+    if (!user?.uid) {
+      clearServer();
+      return;
+    }
     void load();
-  }, [load]);
+  }, [user?.uid, load, clearServer]);
+
+  if (authLoading || !user) {
+    return (
+      <div className="flex items-center gap-3 px-4 py-16 text-gray-400 sm:px-6">
+        <Spinner />
+        {authLoading ? "Loading…" : "Redirecting…"}
+      </div>
+    );
+  }
 
   if (loading) {
     return (

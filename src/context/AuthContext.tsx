@@ -17,6 +17,7 @@ import {
   useMemo,
   useState,
 } from "react";
+import { useRouter } from "next/navigation";
 import type { FirebasePublicConfig } from "@/lib/public-config";
 import { isFirebaseConfigConfigured } from "@/lib/public-config";
 import { getFirebaseAuth, initFirebaseClient } from "@/lib/firebase/client";
@@ -36,6 +37,7 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 
 let lastSessionSyncAt = 0;
 let sessionSyncPromise: Promise<void> | null = null;
+let explicitSignOut = false;
 
 function mapUser(user: User): AuthUser {
   return {
@@ -86,7 +88,10 @@ async function establishSession(
 
 async function clearSession() {
   lastSessionSyncAt = 0;
-  await fetch("/api/auth/session", { method: "DELETE" });
+  await fetch("/api/auth/session", {
+    method: "DELETE",
+    credentials: "same-origin",
+  });
 }
 
 async function fetchSessionUser(): Promise<AuthUser | null> {
@@ -117,6 +122,7 @@ export function AuthProvider({
   firebaseConfig: FirebasePublicConfig;
   children: React.ReactNode;
 }) {
+  const router = useRouter();
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
   const configured = isFirebaseConfigConfigured(firebaseConfig);
@@ -148,6 +154,12 @@ export function AuthProvider({
           void establishSession(firebaseUser).catch(() => {
             // Cookie sync failed; client auth state is still usable.
           });
+          return;
+        }
+
+        if (explicitSignOut) {
+          setUser(null);
+          setLoading(false);
           return;
         }
 
@@ -202,13 +214,19 @@ export function AuthProvider({
   }, []);
 
   const signOut = useCallback(async () => {
-    const firebaseAuth = getFirebaseAuth();
-    if (firebaseAuth) {
-      await firebaseSignOut(firebaseAuth);
+    explicitSignOut = true;
+    try {
+      await clearSession();
+      setUser(null);
+      const firebaseAuth = getFirebaseAuth();
+      if (firebaseAuth) {
+        await firebaseSignOut(firebaseAuth);
+      }
+      router.replace("/signin");
+    } finally {
+      explicitSignOut = false;
     }
-    await clearSession();
-    setUser(null);
-  }, []);
+  }, [router]);
 
   const value = useMemo(
     () => ({

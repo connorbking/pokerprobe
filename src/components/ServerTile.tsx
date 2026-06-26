@@ -5,7 +5,8 @@ import type { Server } from "@/lib/firestore-server";
 import { siteConfig } from "@/lib/config";
 import {
   getPlanLabel,
-  getServerDisplayStatus,
+  getServerStatusLabel,
+  getServerStatusLightColor,
 } from "@/lib/servers";
 import {
   getServerStatRows,
@@ -19,24 +20,17 @@ import {
 } from "@/lib/dev-tools-hooks";
 import { useDevTools } from "@/context/DevToolsContext";
 
-function StatusDot({
-  color,
-}: {
-  color: "gray" | "yellow" | "green" | "red" | "blue";
-}) {
+function StatusDot({ color }: { color: "green" | "red" }) {
   const colors = {
-    gray: "bg-gray-500",
-    yellow: "bg-yellow-500",
     green: "bg-green-500",
     red: "bg-red-500",
-    blue: "bg-blue-500",
   };
 
   return (
     <span className="relative flex h-2.5 w-2.5">
-      {(color === "green" || color === "blue") && (
+      {color === "green" && (
         <span
-          className={`absolute inline-flex h-full w-full animate-ping rounded-full opacity-75 ${colors[color]}`}
+          className={`absolute inline-flex h-full w-full animate-ping rounded-full opacity-75 ${colors.green}`}
         />
       )}
       <span
@@ -65,13 +59,14 @@ export function ServerTile({
   onLabelUpdated: (serverId: string, label: string) => void;
 }) {
   const { toggles, devToolsActive, isAdmin } = useDevTools();
-  const displayStatus = getServerDisplayStatus(server);
   const fallbackLabel = `${getPlanLabel(server.plan)} server`;
   const isSettingUp = isServerSettingUp(server);
   const statRows = getServerStatRows(server);
   const canManage = useCanAccessServerManage(server);
   const previewMode = useDevToolsPreviewMode(server);
   const effectiveOnline = useEffectiveServerOnline(server);
+  const statusColor = getServerStatusLightColor(server, { effectiveOnline });
+  const statusLabel = getServerStatusLabel(server, { previewMode, effectiveOnline });
   const manageDisabledTitle =
     "Available when setup is complete and your server is Online";
   const showDebug =
@@ -88,10 +83,8 @@ export function ServerTile({
             onUpdated={(label) => onLabelUpdated(server.id, label)}
           />
           <div className="mt-2 flex items-center gap-2">
-            <StatusDot color={displayStatus.color} />
-            <span className="text-sm text-gray-300">
-              {previewMode ? "Online (mocked)" : displayStatus.label}
-            </span>
+            <StatusDot color={statusColor} />
+            <span className="text-sm text-gray-300">{statusLabel}</span>
             {isSettingUp && <Spinner />}
           </div>
         </div>
