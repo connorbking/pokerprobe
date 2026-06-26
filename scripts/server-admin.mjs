@@ -40,8 +40,8 @@ Commands:
   activate <serverId> [--hostname host-part] [--guacamole-url url] [--username name] [--ip addr] [--hetzner-id id] [--installed-sims flopzilla,piosolver]
   update <serverId> [--status status] [--hostname host-part] [--guacamole-url url] [--username name] [--ip addr] [--notes text] [--label name]
 
-  activate without --hostname or --guacamole-url fills both from serverSlug + userSlug
-  (Myrtille URL: https://{serverSlug}.{userSlug}.pokerprobe.com/myrtille)
+  activate without --hostname or --guacamole-url fills both from serverSlug
+  (Myrtille URL: https://{serverSlug}.pokerprobe.com/myrtille — 8-char slug)
 
 Examples:
   npm run server-admin -- list --status pending

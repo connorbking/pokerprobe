@@ -393,21 +393,14 @@ function ServerManageView({
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
-      <Link
-        href="/dashboard"
-        className="text-sm text-gold-400 hover:underline"
-      >
-        ← Dashboard
-      </Link>
-
       {previewMode && (
-        <div className="mt-6 rounded-xl border border-yellow-500/30 bg-yellow-500/10 px-4 py-3 text-sm text-yellow-200">
+        <div className="rounded-xl border border-yellow-500/30 bg-yellow-500/10 px-4 py-3 text-sm text-yellow-200">
           Preview mode — you can explore this page before your server is Online.
           Live desktop and file access will activate when setup completes.
         </div>
       )}
 
-      <div className="mt-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 className="font-display text-3xl font-bold text-white">
             {server.label || fallbackLabel}
@@ -557,16 +550,22 @@ export function ServerManageClient({ serverId }: { serverId: string }) {
     );
   }
 
+  const onServerUpdated = useCallback((patch: Partial<Server>) => {
+    setServer((current) => (current ? { ...current, ...patch } : current));
+  }, []);
+
+  const onServerTerminated = useCallback(() => {
+    router.replace("/dashboard");
+  }, [router]);
+
   return (
     <ServerManageView
       server={server}
       onLabelUpdated={(label) =>
         setServer((current) => (current ? { ...current, label } : current))
       }
-      onServerUpdated={(patch) =>
-        setServer((current) => (current ? { ...current, ...patch } : current))
-      }
-      onServerTerminated={() => router.replace("/dashboard")}
+      onServerUpdated={onServerUpdated}
+      onServerTerminated={onServerTerminated}
     />
   );
 }

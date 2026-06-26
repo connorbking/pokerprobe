@@ -40,17 +40,13 @@ async function cloudflareFetch<T>(
   return data.result;
 }
 
-/** DNS label: g76t4.jsmith (under pokerprobe.com) */
-export function buildDnsRecordName(serverSlug: string, userSlug: string): string {
-  return `${serverSlug}.${userSlug}`;
+/** DNS label: 8-char server slug under pokerprobe.com */
+export function buildDnsRecordName(serverSlug: string): string {
+  return serverSlug;
 }
 
-export function buildDnsFqdn(
-  serverSlug: string,
-  userSlug: string,
-  apexDomain: string
-): string {
-  return `${buildDnsRecordName(serverSlug, userSlug)}.${apexDomain}`;
+export function buildDnsFqdn(serverSlug: string, apexDomain: string): string {
+  return `${buildDnsRecordName(serverSlug)}.${apexDomain}`;
 }
 
 export async function findDnsARecord(
@@ -71,12 +67,11 @@ export async function upsertDnsARecord(options: {
   token: string;
   zoneId: string;
   serverSlug: string;
-  userSlug: string;
   apexDomain: string;
   ip: string;
   proxied: boolean;
 }): Promise<{ recordId: string; fqdn: string; created: boolean }> {
-  const name = buildDnsRecordName(options.serverSlug, options.userSlug);
+  const name = buildDnsRecordName(options.serverSlug);
   const fqdn = `${name}.${options.apexDomain}`;
   const existing = await findDnsARecord(options.token, options.zoneId, fqdn);
 

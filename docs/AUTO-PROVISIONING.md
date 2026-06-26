@@ -2,8 +2,8 @@
 
 On **`checkout.session.completed`**, when enabled, PokerProbe:
 
-1. Creates `servers/{id}` with `serverSlug` + `userSlug` (already done)
-2. Creates Cloudflare **A record**: `{serverSlug}.{userSlug}.pokerprobe.com` → origin IP
+1. Creates `servers/{id}` with unique 8-char `serverSlug` (already done)
+2. Creates Cloudflare **A record**: `{serverSlug}.pokerprobe.com` → origin IP
 3. Sets **`guacamoleUrl`** (Myrtille desktop URL) on the server record
 4. Optionally marks the server **`active`** so the Dashboard Desktop tab works immediately
 
@@ -53,13 +53,12 @@ Expect `"configured": true` and `defaults.defaultOriginIp` / `defaults.defaultOr
 
 | Checkout | Cloudflare DNS | Firestore |
 |----------|----------------|-----------|
-| `userSlug: jsmith` | — | on user doc |
-| `serverSlug: g76t4` | `g76t4.jsmith.pokerprobe.com` A → server `ip` | `ip`, `originPort`, `guacamoleUrl`, `hostname`, `active` |
+| `serverSlug: k7m2p9xq` | `k7m2p9xq.pokerprobe.com` A → server `ip` | `ip`, `originPort`, `guacamoleUrl`, `hostname`, `active` |
 
-Desktop URL (lab with port 8787):
+Desktop URL:
 
 ```text
-https://g76t4.jsmith.pokerprobe.com:8787/myrtille
+https://k7m2p9xq.pokerprobe.com/myrtille
 ```
 
 ## Test flow
@@ -88,7 +87,19 @@ When each Hetzner VM gets its own IP, update the server record (`ip`, optionally
 
 ## SSL note (lab)
 
-Your Myrtille cert may be for IP/localhost, not `g76t4.jsmith.pokerprobe.com`. Browsers may warn on the subdomain until you add an IIS binding + cert for that hostname (or use Cloudflare origin cert in prod).
+Myrtille/IIS often ships with a self-signed cert for **IP or localhost**, not `{serverSlug}.pokerprobe.com`. That causes Chrome **“incorrect credentials”** / HSTS blocks.
+
+```powershell
+.\scripts\myrtille-bind-ssl.ps1 -Hostname k7m2p9xq.pokerprobe.com
+```
+
+Then test:
+
+```text
+https://k7m2p9xq.pokerprobe.com/myrtille
+```
+
+**Limits:** Self-signed is still **not publicly trusted**. HSTS on `pokerprobe.com` may prevent bypass — clear locally at `chrome://net-internals/#hsts` for dev, or use **Cloudflare proxy (orange cloud)** for a trusted edge cert later.
 
 ## Manual fallback
 
@@ -96,5 +107,5 @@ If auto-provision is off or fails, use:
 
 ```bash
 npm run server-admin -- activate srv_xxx \
-  --guacamole-url "https://g76t4.jsmith.pokerprobe.com:8787/myrtille"
+  --guacamole-url "https://k7m2p9xq.pokerprobe.com/myrtille"
 ```

@@ -49,6 +49,14 @@ function NoServersMarketing() {
         within {siteConfig.provisioningHours}. Perfect for HRC, Flopzilla,
         ICMIZER, and overnight simulation runs.
       </p>
+      <div className="mt-8 flex justify-center">
+        <Link
+          href="/dashboard/plans"
+          className="inline-flex items-center gap-1.5 rounded-lg bg-gold-500 px-6 py-3 text-sm font-semibold text-felt-950 transition hover:bg-gold-400"
+        >
+          Get Started
+        </Link>
+      </div>
     </div>
   );
 }

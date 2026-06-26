@@ -26,14 +26,13 @@ const server = await getServerById(serverId);
 if (!server) {
   throw new Error(`Server not found: ${serverId}`);
 }
-if (!server.serverSlug || !server.userSlug) {
-  throw new Error(`Server ${serverId} is missing serverSlug or userSlug`);
+if (!server.serverSlug) {
+  throw new Error(`Server ${serverId} is missing serverSlug`);
 }
 
 const result = await autoProvisionServerDesktop({
   serverId: server.id,
   serverSlug: server.serverSlug,
-  userSlug: server.userSlug,
 });
 
 console.log(JSON.stringify(result, null, 2));

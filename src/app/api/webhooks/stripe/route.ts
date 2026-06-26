@@ -6,6 +6,7 @@ import {
   getServersBySubscriptionId,
   updateServer,
   upsertUser,
+  allocateServerSlug,
   type PlanId,
   type ServerType,
 } from "@/lib/firestore-server";
@@ -15,7 +16,7 @@ import {
 } from "@/lib/server-provision";
 import { getProvisionTagsForPlan } from "@/lib/sim-catalog";
 import { getProvisioningDefaults } from "@/lib/provision-defaults";
-import { generateServerSlug, buildServerHostPart } from "@/lib/server-hostname";
+import { buildServerHostPart } from "@/lib/server-hostname";
 import { getStripe, planFromPriceId } from "@/lib/stripe";
 import { subscriptionPeriodEnd } from "@/lib/stripe-billing";
 
@@ -92,13 +93,9 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
 
   const user = await upsertUser(userId, userEmail, customerId);
   const userSlug = user.userSlug;
-  if (!userSlug) {
-    console.error("[WEBHOOK] checkout.session.completed failed to assign userSlug");
-    return;
-  }
 
-  const serverSlug = generateServerSlug();
-  const hostname = buildServerHostPart(serverSlug, userSlug);
+  const serverSlug = await allocateServerSlug();
+  const hostname = buildServerHostPart(serverSlug);
 
   const planLabels: Record<PlanId, string> = {
     starter: "Study",
@@ -141,7 +138,6 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     const provision = await autoProvisionServerDesktop({
       serverId: server.id,
       serverSlug,
-      userSlug,
     });
     if (provision.skipped) {
       console.log("[AUTO PROVISION] skipped:", provision.reason);

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { Server } from "@/lib/firestore-server";
 import { getPlanById } from "@/lib/config";
 import { getPlanLabel } from "@/lib/servers";
@@ -60,6 +60,8 @@ export function PlanPanel({
   const [confirmEnd, setConfirmEnd] = useState(false);
   const [confirmImmediate, setConfirmImmediate] = useState(false);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
+  const onServerUpdatedRef = useRef(onServerUpdated);
+  onServerUpdatedRef.current = onServerUpdated;
 
   const loadBilling = useCallback(async () => {
     if (server.status === "terminated") {
@@ -67,7 +69,6 @@ export function PlanPanel({
       return;
     }
 
-    setLoading(true);
     setError(null);
     try {
       const res = await authFetch(`/api/servers/${server.id}/subscription`);
@@ -79,7 +80,7 @@ export function PlanPanel({
         throw new Error(data.error ?? "Failed to load subscription");
       }
       setBilling(data.billing);
-      onServerUpdated({
+      onServerUpdatedRef.current({
         cancelAtPeriodEnd: data.billing.cancelAtPeriodEnd,
         currentPeriodEnd: data.billing.currentPeriodEnd,
       });
@@ -88,9 +89,10 @@ export function PlanPanel({
     } finally {
       setLoading(false);
     }
-  }, [server.id, server.status, onServerUpdated]);
+  }, [server.id, server.status]);
 
   useEffect(() => {
+    setLoading(true);
     void loadBilling();
   }, [loadBilling]);
 
@@ -168,9 +170,10 @@ export function PlanPanel({
   }
 
   const cancelPending =
-    billing?.cancelAtPeriodEnd || server.cancelAtPeriodEnd === true;
+    billing?.cancelAtPeriodEnd ?? server.cancelAtPeriodEnd === true;
   const accessUntil =
     billing?.currentPeriodEnd ?? server.currentPeriodEnd ?? null;
+  const subscriptionStatus = billing?.status ?? null;
 
   return (
     <div className="space-y-8">
@@ -186,29 +189,31 @@ export function PlanPanel({
             ${plan.price}/month · {plan.description}
           </p>
         )}
-        {loading && (
+        {loading && !billing && !server.currentPeriodEnd && (
           <p className="mt-4 text-sm text-gray-500">Loading billing status…</p>
         )}
-        {!loading && billing && (
-          <dl className="mt-6 grid gap-4 sm:grid-cols-2">
-            <div>
-              <dt className="text-xs uppercase tracking-wide text-gray-500">
-                Subscription status
-              </dt>
-              <dd className="mt-1 text-sm capitalize text-gray-200">
-                {billing.status.replace(/_/g, " ")}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-xs uppercase tracking-wide text-gray-500">
-                {cancelPending ? "Access until" : "Next renewal"}
-              </dt>
-              <dd className="mt-1 text-sm text-gray-200">
-                {formatDate(accessUntil)}
-              </dd>
-            </div>
-          </dl>
-        )}
+        <dl className="mt-6 grid gap-4 sm:grid-cols-2">
+          <div>
+            <dt className="text-xs uppercase tracking-wide text-gray-500">
+              Subscription status
+            </dt>
+            <dd className="mt-1 text-sm capitalize text-gray-200">
+              {subscriptionStatus
+                ? subscriptionStatus.replace(/_/g, " ")
+                : loading
+                  ? "Loading…"
+                  : "—"}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-xs uppercase tracking-wide text-gray-500">
+              {cancelPending ? "Access until" : "Next renewal"}
+            </dt>
+            <dd className="mt-1 text-sm text-gray-200">
+              {formatDate(accessUntil)}
+            </dd>
+          </div>
+        </dl>
       </section>
 
       {cancelPending && (

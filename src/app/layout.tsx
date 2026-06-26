@@ -30,11 +30,11 @@ export default function RootLayout({
   const publicConfig = getPublicRuntimeConfig();
 
   return (
-    <html lang="en">
-      <body className="min-h-screen antialiased felt-texture suit-pattern">
+    <html lang="en" className="min-h-screen">
+      <body className="flex min-h-screen flex-col antialiased felt-texture suit-pattern">
         <Providers config={publicConfig}>
           <Header />
-          <main>{children}</main>
+          <main className="flex-1">{children}</main>
           <Footer />
         </Providers>
       </body>

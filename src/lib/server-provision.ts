@@ -14,7 +14,6 @@ import {
 export interface AutoProvisionInput {
   serverId: string;
   serverSlug: string;
-  userSlug: string;
 }
 
 export interface AutoProvisionResult {
@@ -32,7 +31,7 @@ export function isAutoProvisionEnabled(): boolean {
   return getProvisionConfigStatus().configured;
 }
 
-/** DNS + desktop URL after checkout (origin IP/port from server record or Firestore defaults). */
+/** DNS + desktop URL after checkout (flat {serverSlug}.pokerprobe.com). */
 export async function autoProvisionServerDesktop(
   input: AutoProvisionInput
 ): Promise<AutoProvisionResult> {
@@ -66,19 +65,18 @@ export async function autoProvisionServerDesktop(
   }
 
   const config = assertProvisionConfigReady();
-  const hostname = buildServerHostPart(input.serverSlug, input.userSlug);
+  const hostname = buildServerHostPart(input.serverSlug);
 
   const dns = await upsertDnsARecord({
     token: config.cloudflareApiToken!,
     zoneId: config.cloudflareZoneId!,
     serverSlug: input.serverSlug,
-    userSlug: input.userSlug,
     apexDomain: config.apexDomain,
     ip: origin.ip,
     proxied: config.dnsProxied,
   });
 
-  const desktopUrl = buildMyrtilleDesktopUrl(input.serverSlug, input.userSlug, {
+  const desktopUrl = buildMyrtilleDesktopUrl(input.serverSlug, {
     port: origin.originPort,
   });
 

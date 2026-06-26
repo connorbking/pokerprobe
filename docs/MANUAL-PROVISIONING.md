@@ -15,9 +15,9 @@ Collection: **`servers`**
 | `plan` | `starter` \| `pro` \| `elite` |
 | `status` | `pending` → `provisioning` → `active` (or `suspended` / `terminated`) |
 | `userSlug` | Owner namespace from email local-part, e.g. `jsmith` (unique; duplicates get `-2`, `-3`, …) |
-| `serverSlug` | Short per-server id, e.g. `g76t4` |
-| `hostname` | Host part `{serverSlug}.{userSlug}` → `g76t4.jsmith.pokerprobe.com` |
-| `guacamoleUrl` | Myrtille desktop URL, e.g. `https://g76t4.jsmith.pokerprobe.com/myrtille` |
+| `serverSlug` | Unique 8-char DNS label, e.g. `k7m2p9xq` → `k7m2p9xq.pokerprobe.com` |
+| `hostname` | Same as `serverSlug` (flat subdomain) |
+| `guacamoleUrl` | Myrtille desktop URL, e.g. `https://k7m2p9xq.pokerprobe.com/myrtille` |
 | `username` | Optional; SFTP/RDP username if needed |
 | `ip` | Internal/private IP (ops only; not shown as primary UX) |
 | `hetznerServerId` | Infrastructure ID |
@@ -50,7 +50,7 @@ The customer sees the server tile immediately with placeholder stats.
 ### 2. Provision infrastructure
 
 1. Create the Windows Server (Hetzner) matching the plan SKU
-2. Register DNS: `{serverSlug}.{userSlug}.pokerprobe.com` → server IP (or Cloudflare Tunnel)
+2. Register DNS: `{serverSlug}.pokerprobe.com` → server IP (or Cloudflare Tunnel)
 3. Install sims per `provisionTags` on the server record
 
 ### 3. Activate in Firestore (no redeploy)

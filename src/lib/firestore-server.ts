@@ -7,7 +7,11 @@ import {
   getAccessToken,
 } from "./firestore";
 import { getFirestoreConfig } from "./firestore-env";
-import { buildServerHostPart, buildMyrtilleDesktopUrl } from "./server-hostname";
+import {
+  buildServerHostPart,
+  buildMyrtilleDesktopUrl,
+  generateServerSlug,
+} from "./server-hostname";
 import { resolveServerOrigin } from "./provision-defaults";
 import {
   isReservedUserSlug,
@@ -37,14 +41,14 @@ export interface Server {
   /** HTTPS port for Myrtille desktop URL (null or 443 = standard) */
   originPort?: number | null;
   hostname: string | null;
-  /** Short server id for subdomain, e.g. g76t4 → g76t4.{userSlug}.pokerprobe.com */
+  /** Flat DNS label (8 chars), e.g. k7m2p9xq → k7m2p9xq.pokerprobe.com */
   serverSlug: string | null;
-  /** Owner namespace slug from email local-part, e.g. jsmith */
+  /** Owner slug from email (internal; not used in DNS) */
   userSlug: string | null;
   username: string | null;
   guacamoleUrl: string | null;
   hetznerServerId: string | null;
-  /** Cloudflare DNS record id for {serverSlug}.{userSlug} A record */
+  /** Cloudflare DNS record id for {serverSlug} A record */
   cloudflareDnsRecordId?: string | null;
   /** Stripe subscription set to end at current period (no renewal) */
   cancelAtPeriodEnd?: boolean;
@@ -112,6 +116,33 @@ export async function getServerById(serverId: string): Promise<Server | null> {
   const { projectId, token } = await getToken();
   const doc = await firestoreGet(projectId, `servers/${serverId}`, token);
   return doc ? docToServer(doc) : null;
+}
+
+export async function getServerByServerSlug(
+  serverSlug: string
+): Promise<Server | null> {
+  const { projectId, token } = await getToken();
+  const docs = await firestoreQuery(
+    projectId,
+    "servers",
+    "serverSlug",
+    serverSlug.toLowerCase(),
+    token
+  );
+  const server = docs[0];
+  return server ? docToServer(server) : null;
+}
+
+/** Unique flat 8-char subdomain for new servers. */
+export async function allocateServerSlug(): Promise<string> {
+  for (let attempt = 0; attempt < 32; attempt++) {
+    const slug = generateServerSlug();
+    const taken = await getServerByServerSlug(slug);
+    if (!taken) {
+      return slug;
+    }
+  }
+  throw new Error("Could not allocate unique server slug");
 }
 
 export async function getServerForUser(
@@ -325,18 +356,18 @@ export type ProvisionServerPatch = Partial<
 export async function defaultProvisionHostFields(
   server: Pick<
     Server,
-    "serverSlug" | "userSlug" | "hostname" | "guacamoleUrl" | "ip" | "originPort"
+    "serverSlug" | "hostname" | "guacamoleUrl" | "ip" | "originPort"
   >
 ): Promise<{ hostname: string; guacamoleUrl: string } | null> {
-  if (!server.serverSlug || !server.userSlug) {
+  if (!server.serverSlug) {
     return null;
   }
 
-  const hostname = buildServerHostPart(server.serverSlug, server.userSlug);
+  const hostname = buildServerHostPart(server.serverSlug);
   const { originPort } = await resolveServerOrigin(server);
   const guacamoleUrl =
     server.guacamoleUrl ??
-    buildMyrtilleDesktopUrl(server.serverSlug, server.userSlug, {
+    buildMyrtilleDesktopUrl(server.serverSlug, {
       port: originPort,
     });
 
@@ -358,7 +389,6 @@ export async function provisionServerRecord(
   if (patch.status === "active") {
     const defaults = await defaultProvisionHostFields({
       serverSlug: (patch.serverSlug ?? existing.serverSlug) as string | null,
-      userSlug: (patch.userSlug ?? existing.userSlug) as string | null,
       hostname: (patch.hostname ?? existing.hostname) as string | null,
       guacamoleUrl: (patch.guacamoleUrl ?? existing.guacamoleUrl) as string | null,
       ip: (patch.ip ?? existing.ip) as string | null,
