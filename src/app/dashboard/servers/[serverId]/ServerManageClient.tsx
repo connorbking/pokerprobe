@@ -521,6 +521,14 @@ export function ServerManageClient({ serverId }: { serverId: string }) {
     void load();
   }, [user?.uid, load, clearServer]);
 
+  const onServerUpdated = useCallback((patch: Partial<Server>) => {
+    setServer((current) => (current ? { ...current, ...patch } : current));
+  }, []);
+
+  const onServerTerminated = useCallback(() => {
+    router.replace("/dashboard");
+  }, [router]);
+
   if (authLoading || !user) {
     return (
       <div className="flex items-center gap-3 px-4 py-16 text-gray-400 sm:px-6">
@@ -549,14 +557,6 @@ export function ServerManageClient({ serverId }: { serverId: string }) {
       </div>
     );
   }
-
-  const onServerUpdated = useCallback((patch: Partial<Server>) => {
-    setServer((current) => (current ? { ...current, ...patch } : current));
-  }, []);
-
-  const onServerTerminated = useCallback(() => {
-    router.replace("/dashboard");
-  }, [router]);
 
   return (
     <ServerManageView
