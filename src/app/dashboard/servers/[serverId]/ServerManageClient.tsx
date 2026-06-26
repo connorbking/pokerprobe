@@ -13,7 +13,7 @@ import {
   getServerStatusLabel,
   getServerStatusLightColor,
 } from "@/lib/servers";
-import { getServerAddress, getServerStatRows, isServerSettingUp } from "@/lib/server-display";
+import { getServerAddress, getRdpHost, getServerStatRows, isServerSettingUp } from "@/lib/server-display";
 import { getSimsForPlan, simNameFromTag } from "@/lib/sim-catalog";
 import { ServerLabelEditor } from "@/components/ServerLabelEditor";
 import { PlanPanel } from "@/components/PlanPanel";
@@ -88,8 +88,115 @@ function PanelPlaceholder({
   );
 }
 
+type DesktopViewMode = "browser" | "fullscreen" | "rdp";
+
+function EyeIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  );
+}
+
+function EyeSlashIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M9.88 9.88a3 3 0 1 0 4.24 4.24" />
+      <path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68" />
+      <path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61" />
+      <line x1="2" x2="22" y1="2" y2="22" />
+    </svg>
+  );
+}
+
+function desktopModeButtonClass(active: boolean, disabled?: boolean) {
+  return [
+    "inline-flex items-center rounded-lg px-4 py-2.5 text-sm font-semibold transition",
+    disabled
+      ? "cursor-not-allowed border border-white/5 bg-felt-900/30 text-gray-600"
+      : active
+        ? "bg-gold-500 text-felt-950 hover:bg-gold-400"
+        : "border border-white/10 bg-felt-900/50 text-gray-300 hover:border-white/20 hover:text-white",
+  ].join(" ");
+}
+
+function CredentialField({
+  label,
+  value,
+  mono = true,
+  secret = false,
+}: {
+  label: string;
+  value: string | null | undefined;
+  mono?: boolean;
+  secret?: boolean;
+}) {
+  const [visible, setVisible] = useState(false);
+  const display = value?.trim() || null;
+  const masked = secret && !visible;
+
+  return (
+    <div className="rounded-xl border border-white/10 bg-felt-800/40 p-4">
+      <dt className="text-xs uppercase tracking-wide text-gray-500">{label}</dt>
+      <dd className="mt-2 flex items-center justify-between gap-3">
+        <span
+          className={`min-w-0 flex-1 break-all text-sm text-gray-200 ${mono ? "font-mono" : ""}`}
+        >
+          {display ? (masked ? "••••••••••••" : display) : "—"}
+        </span>
+        {secret && display && (
+          <button
+            type="button"
+            onClick={() => setVisible((current) => !current)}
+            className="shrink-0 rounded-md p-1.5 text-gray-400 transition hover:bg-white/5 hover:text-white"
+            aria-label={visible ? "Hide password" : "Show password"}
+          >
+            {visible ? <EyeSlashIcon className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}
+          </button>
+        )}
+      </dd>
+    </div>
+  );
+}
+
 function DesktopPanel({ server }: { server: Server }) {
   const settingUp = isServerSettingUp(server);
+  const [viewMode, setViewMode] = useState<DesktopViewMode>("browser");
+  const webUrl = server.guacamoleUrl;
+  const rdpHost = getRdpHost(server);
+
+  const openWebFullscreen = useCallback(() => {
+    if (!webUrl) return;
+    setViewMode("fullscreen");
+    const width = window.screen.availWidth;
+    const height = window.screen.availHeight;
+    window.open(
+      webUrl,
+      `pokerprobe-desktop-${server.id}`,
+      `noopener,noreferrer,width=${width},height=${height},left=0,top=0`
+    );
+  }, [server.id, webUrl]);
 
   if (settingUp) {
     return (
@@ -109,41 +216,102 @@ function DesktopPanel({ server }: { server: Server }) {
     );
   }
 
-  if (!server.guacamoleUrl) {
+  const hasWebAccess = Boolean(webUrl);
+  const hasRdpCredentials = Boolean(rdpHost && server.username);
+
+  if (!hasWebAccess && !hasRdpCredentials) {
     return (
       <PanelPlaceholder
         title="Connecting your desktop"
-        body="Your browser workspace link is being configured. Check back shortly."
+        body="Your workspace link and RDP credentials are being configured. Check back shortly."
       />
     );
   }
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap gap-3">
-        <a
-          href={server.guacamoleUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex rounded-lg bg-gold-500 px-5 py-2.5 text-sm font-semibold text-felt-950 hover:bg-gold-400"
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          disabled={!hasWebAccess}
+          onClick={() => setViewMode("browser")}
+          className={desktopModeButtonClass(viewMode === "browser", !hasWebAccess)}
         >
-          Open desktop
-        </a>
-        <p className="self-center text-sm text-gray-400">
-          Full-screen workspace — optimized for solver sessions.
-        </p>
+          Web Browser
+        </button>
+        <button
+          type="button"
+          disabled={!hasWebAccess}
+          onClick={openWebFullscreen}
+          className={desktopModeButtonClass(viewMode === "fullscreen", !hasWebAccess)}
+        >
+          Web Fullscreen
+        </button>
+        <button
+          type="button"
+          onClick={() => setViewMode("rdp")}
+          className={desktopModeButtonClass(viewMode === "rdp")}
+        >
+          Direct RDP
+        </button>
       </div>
-      <div className="overflow-hidden rounded-xl border border-white/10 bg-black/40">
-        <iframe
-          src={server.guacamoleUrl}
-          title={`${server.label} desktop`}
-          className="h-[min(70vh,640px)] w-full bg-felt-950"
-          allow="clipboard-read; clipboard-write"
-        />
-      </div>
-      <p className="text-xs text-gray-500">
-        If the embed does not load, use Open desktop for the full workspace view.
-      </p>
+
+      {viewMode === "browser" && hasWebAccess && (
+        <>
+          <p className="text-sm text-gray-400">
+            Embedded workspace in your browser — good for quick checks.
+          </p>
+          <div className="overflow-hidden rounded-xl border border-white/10 bg-black/40">
+            <iframe
+              src={webUrl!}
+              title={`${server.label} desktop`}
+              className="h-[min(70vh,640px)] w-full bg-felt-950"
+              allow="clipboard-read; clipboard-write"
+            />
+          </div>
+        </>
+      )}
+
+      {viewMode === "fullscreen" && hasWebAccess && (
+        <div className="rounded-xl border border-dashed border-white/10 bg-felt-900/30 px-6 py-10 text-center">
+          <p className="font-medium text-white">Workspace opened in a new window</p>
+          <p className="mx-auto mt-2 max-w-md text-sm text-gray-400">
+            Use your system&apos;s fullscreen control (F11 on most browsers) for the best
+            solver experience. Switch back to Web Browser to embed the desktop here.
+          </p>
+          <button
+            type="button"
+            onClick={openWebFullscreen}
+            className="mt-5 inline-flex rounded-lg bg-gold-500 px-5 py-2.5 text-sm font-semibold text-felt-950 hover:bg-gold-400"
+          >
+            Reopen workspace
+          </button>
+        </div>
+      )}
+
+      {viewMode === "rdp" && (
+        <div className="space-y-4">
+          <p className="text-sm text-gray-400">
+            Connect with Microsoft Remote Desktop or any RDP client for the fastest
+            response — recommended for solver sessions.
+          </p>
+          <dl className="grid gap-4 sm:grid-cols-2">
+            <CredentialField label="Computer" value={rdpHost} />
+            <CredentialField label="Port" value="3389" />
+            <CredentialField label="Username" value={server.username} />
+            <CredentialField label="Password" value={server.rdpPassword} secret />
+          </dl>
+          {!server.rdpPassword && (
+            <p className="text-xs text-gray-500">
+              Password not on file yet — check your welcome email or contact{" "}
+              <Link href={`mailto:${siteConfig.supportEmail}`} className="text-gold-400 hover:underline">
+                support
+              </Link>
+              .
+            </p>
+          )}
+        </div>
+      )}
     </div>
   );
 }

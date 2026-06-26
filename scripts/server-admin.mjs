@@ -37,8 +37,8 @@ PokerProbe server admin (Firestore)
 Commands:
   list [--status pending|provisioning|active|suspended] [--email user@example.com]
   get <serverId>
-  activate <serverId> [--hostname host-part] [--guacamole-url url] [--username name] [--ip addr] [--hetzner-id id] [--installed-sims flopzilla,piosolver]
-  update <serverId> [--status status] [--hostname host-part] [--guacamole-url url] [--username name] [--ip addr] [--notes text] [--label name]
+  activate <serverId> [--hostname host-part] [--guacamole-url url] [--username name] [--rdp-password pass] [--ip addr] [--hetzner-id id] [--installed-sims flopzilla,piosolver]
+  update <serverId> [--status status] [--hostname host-part] [--guacamole-url url] [--username name] [--rdp-password pass] [--ip addr] [--notes text] [--label name]
 
   activate without --hostname or --guacamole-url fills both from serverSlug
   (Myrtille URL: https://{serverSlug}.pokerprobe.com/myrtille — 8-char slug)
@@ -128,6 +128,9 @@ async function run() {
 
     const username = flag("--username");
     if (username) patch.username = username;
+
+    const rdpPassword = flag("--rdp-password");
+    if (rdpPassword) patch.rdpPassword = rdpPassword;
 
     const ip = flag("--ip");
     if (ip) patch.ip = ip;

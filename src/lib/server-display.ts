@@ -35,6 +35,18 @@ export function getServerAddress(server: Server): string {
   return "Assigning subdomain";
 }
 
+/** Host for Microsoft Remote Desktop (FQDN preferred, else public IP). */
+export function getRdpHost(server: Pick<Server, "hostname" | "serverSlug" | "userSlug" | "ip" | "status">): string | null {
+  const fqdn = resolveServerFqdn(server.hostname, server.serverSlug, server.userSlug);
+  if (fqdn) {
+    return fqdn;
+  }
+  if (server.ip) {
+    return server.ip;
+  }
+  return null;
+}
+
 export function formatUptime(server: Server): string {
   if (isServerSettingUp(server)) {
     return "--";

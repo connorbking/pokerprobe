@@ -47,6 +47,8 @@ export interface Server {
   /** Owner slug from email (internal; not used in DNS) */
   userSlug: string | null;
   username: string | null;
+  /** Windows RDP password (shown on Desktop → Direct RDP) */
+  rdpPassword?: string | null;
   guacamoleUrl: string | null;
   hetznerServerId: string | null;
   /** Cloudflare DNS record id for {serverSlug} A record */
@@ -353,6 +355,7 @@ export type ProvisionServerPatch = Partial<
     | "userSlug"
     | "guacamoleUrl"
     | "username"
+    | "rdpPassword"
     | "hetznerServerId"
     | "ip"
     | "originPort"
