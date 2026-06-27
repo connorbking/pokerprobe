@@ -5,7 +5,7 @@ const faqs = [
   },
   {
     q: "Which plan do I need for PioSolver?",
-    a: "Postflop solves (8–16 GB trees) fit Deep Stack (b3-64, 64 GB RAM). Preflop trees need at least 64 GB RAM per PioSolver's guidance — use Omega with a custom build for the largest farms.",
+    a: "Postflop solves (8–16 GB trees) fit Deep Stack (64 GB RAM). Preflop trees need at least 64 GB RAM per PioSolver's guidance — use Omega with a custom build for the largest farms.",
   },
   {
     q: "How fast is server provisioning?",
@@ -17,7 +17,7 @@ const faqs = [
   },
   {
     q: "What does Omega pricing look like?",
-    a: "Omega is a custom OVH Public Cloud build — pick vCPU, RAM, and NVMe starting from $899/mo. Need something off-catalog? Contact us for a dedicated quote.",
+    a: "Omega is a custom dedicated build — pick vCPU, RAM, and NVMe starting from $899/mo. Need something off-catalog? Contact us for a dedicated quote.",
   },
   {
     q: "Do you offer refunds?",

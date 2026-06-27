@@ -101,15 +101,15 @@ export function isVisibleServerStatus(status: ServerStatus): boolean {
 }
 
 export function getServerSpecLabel(
-  server: Pick<Server, "plan" | "customBuild" | "ovhFlavor">
+  server: Pick<Server, "plan" | "customBuild">
 ): string {
   if (server.customBuild) {
-    const { vcpu, ramGb, solverCacheGb, ovhFlavor } = server.customBuild;
-    return `${ovhFlavor} — ${vcpu} vCPU / ${ramGb} GB · ${solverCacheGb} GB NVMe`;
+    const { vcpu, ramGb, solverCacheGb } = server.customBuild;
+    return `${vcpu} vCPU / ${ramGb} GB RAM · ${solverCacheGb} GB NVMe`;
   }
   const plan = getPlanById(server.plan);
   if (plan && !plan.customBuild) {
-    return `${plan.ovhFlavor} — ${plan.vcpu} vCPU / ${plan.ramGb} GB · ${plan.solverCacheGb} GB NVMe`;
+    return `${plan.vcpu} vCPU / ${plan.ramGb} GB RAM · ${plan.solverCacheGb} GB NVMe`;
   }
-  return server.ovhFlavor ?? getPlanLabel(server.plan);
+  return getPlanLabel(server.plan);
 }

@@ -33,7 +33,7 @@ const features = [
     icon: "📁",
     title: "Dual-Zone Storage",
     description:
-      "Fast local NVMe on each OVH instance for active solver work, plus a separate permanent cloud vault for archives. Upgrade vault capacity without changing compute tier.",
+      "Fast local NVMe on each dedicated server for active solver work, plus a separate permanent cloud vault for archives. Upgrade vault capacity without changing compute tier.",
   },
 ];
 

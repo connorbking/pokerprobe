@@ -6,7 +6,7 @@ import { resolveStorageLimitGb } from "@/lib/storage-vault";
 export interface PlanResourceSpec {
   vcpu: number;
   ramGb: number;
-  /** Local NVMe on the OVH instance — ephemeral solver cache */
+  /** Local NVMe on the dedicated server — ephemeral solver cache */
   solverCacheGb: number;
 }
 
@@ -169,7 +169,7 @@ export function getServerStatRows(server: Server): ServerStatRow[] {
         pending
       ),
       tooltip:
-        "Local NVMe on your OVH instance. Ephemeral working space for active solves — syncs to your cloud vault on shutdown.",
+        "Local NVMe on your dedicated server. Ephemeral working space for active solves — syncs to your cloud vault on shutdown.",
     },
     {
       label: "Cloud vault",

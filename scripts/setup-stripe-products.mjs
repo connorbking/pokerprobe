@@ -49,7 +49,7 @@ const plans = [
   {
     id: "hobby",
     name: "PokerProbe Hobby",
-    description: "OVH b3-16 — 4 vCPU / 16 GB — Flopzilla, ICMIZER & light review",
+    description: "4 vCPU / 16 GB RAM — Flopzilla, ICMIZER & light review",
     amount: 19900,
     envKey: "STRIPE_PRICE_HOBBY",
     legacyEnvKey: "STRIPE_PRICE_STARTER",
@@ -57,7 +57,7 @@ const plans = [
   {
     id: "grind",
     name: "PokerProbe Grind",
-    description: "OVH b3-32 — 8 vCPU / 32 GB — GTO+ & overnight HRC",
+    description: "8 vCPU / 32 GB RAM — GTO+ & overnight HRC",
     amount: 34900,
     envKey: "STRIPE_PRICE_GRIND",
     legacyEnvKey: "STRIPE_PRICE_PRO",
@@ -65,7 +65,7 @@ const plans = [
   {
     id: "deepstack",
     name: "PokerProbe Deep Stack",
-    description: "OVH b3-64 — 16 vCPU / 64 GB — PioSolver postflop & HRC Pro",
+    description: "16 vCPU / 64 GB RAM — PioSolver postflop & HRC Pro",
     amount: 57900,
     envKey: "STRIPE_PRICE_DEEPSTACK",
     legacyEnvKey: "STRIPE_PRICE_ELITE",
@@ -81,12 +81,6 @@ for (const plan of plans) {
     metadata: {
       app: "pokerprobe",
       planId: plan.id,
-      ovhFlavor:
-        plan.id === "hobby"
-          ? "b3-16"
-          : plan.id === "grind"
-            ? "b3-32"
-            : "b3-64",
     },
   });
 

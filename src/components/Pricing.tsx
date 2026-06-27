@@ -2,7 +2,7 @@
 
 import { useAuth } from "@/context/AuthContext";
 import Link from "next/link";
-import { enterprisePlan, pricingPlans } from "@/lib/plans";
+import { enterprisePlan, getPlanSpecSummary, pricingPlans } from "@/lib/plans";
 import { siteConfig } from "@/lib/config";
 
 export function Pricing() {
@@ -16,7 +16,7 @@ export function Pricing() {
             Simple Monthly Pricing
           </h2>
           <p className="mt-4 text-gray-400">
-            OVH Public Cloud instances sized for the tools on our platform.
+            Dedicated Windows servers sized for the tools on our platform.
             Cancel anytime from your dashboard.
           </p>
           <p className="mt-3 text-sm text-gray-500">
@@ -45,7 +45,9 @@ export function Pricing() {
                   <div>
                     <h3 className="text-xl font-bold text-white">{plan.name}</h3>
                     <p className="text-xs font-medium text-gray-500">
-                      {plan.customBuild ? "Custom build" : plan.ovhFlavor}
+                      {plan.customBuild
+                        ? "Custom build"
+                        : getPlanSpecSummary(plan.id)}
                     </p>
                   </div>
                   {plan.highlighted && (

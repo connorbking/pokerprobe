@@ -97,7 +97,7 @@ export async function POST(request: Request) {
             recurring: { interval: "month" },
             product_data: {
               name: `${getStripeProductName("omega")} — ${flavor.label}`,
-              description: `${flavor.ovhFlavor}: ${flavor.vcpu} vCPU / ${flavor.ramGb} GB RAM / ${flavor.solverCacheGb} GB NVMe`,
+              description: `${flavor.label}: ${flavor.vcpu} vCPU / ${flavor.ramGb} GB RAM / ${flavor.solverCacheGb} GB NVMe`,
               metadata: {
                 app: "pokerprobe",
                 planId: "omega",

@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   enterprisePlan,
-  omegaPlan,
+  getPlanSpecSummary,
   planComparisonRows,
   pricingPlans,
 } from "@/lib/plans";
@@ -52,7 +52,7 @@ function PlanComparisonTable({
                 >
                   {plan.name}
                   <span className="mt-0.5 block text-xs font-normal text-gray-400">
-                    {plan.customBuild ? "Custom build" : plan.ovhFlavor}
+                    {plan.customBuild ? "Custom build" : getPlanSpecSummary(plan.id)}
                   </span>
                   {plan.highlighted && (
                     <span className="mt-1 block text-xs font-normal text-gold-400/70">
@@ -147,7 +147,7 @@ export function ChoosePlanSection({
               <div>
                 <h3 className="text-lg font-bold text-white">{plan.name}</h3>
                 <p className="text-xs font-medium text-gray-500">
-                  {plan.customBuild ? "Custom OVH build" : plan.ovhFlavor}
+                  {plan.customBuild ? "Custom dedicated build" : getPlanSpecSummary(plan.id)}
                 </p>
               </div>
               {plan.highlighted && (

@@ -1,6 +1,6 @@
 /**
- * OVHcloud Public Cloud plan catalog — single source of truth for pricing UI,
- * Stripe product names, provisioning specs, and legacy plan ID mapping.
+ * Plan catalog for pricing UI, Stripe product names, and provisioning specs.
+ * Provider/infrastructure details live in server-only modules — never shown to customers.
  */
 
 export type PlanId = "hobby" | "grind" | "deepstack" | "omega";
@@ -78,7 +78,7 @@ export const fixedPlans: PlanDefinition[] = [
     description: "Flopzilla, ICMIZER & light review — always-on equity work",
     idealFor: "Flopzilla · ICMIZER · hand review",
     features: [
-      "OVH b3-16 — 4 vCPU / 16 GB RAM",
+      "4 vCPU / 16 GB RAM dedicated instance",
       "1 concurrent solver job",
       "Windows Server 2022 + RDP",
       "100 GB local NVMe solver cache",
@@ -105,7 +105,7 @@ export const fixedPlans: PlanDefinition[] = [
     description: "GTO+ & overnight HRC — the sweet spot for most regs",
     idealFor: "GTO+ · HRC overnight · multi-table review",
     features: [
-      "OVH b3-32 — 8 vCPU / 32 GB RAM",
+      "8 vCPU / 32 GB RAM dedicated instance",
       "1 concurrent solver job",
       "Windows Server 2022 + RDP",
       "200 GB local NVMe solver cache",
@@ -132,7 +132,7 @@ export const fixedPlans: PlanDefinition[] = [
     description: "PioSolver postflop & large HRC trees for serious study",
     idealFor: "PioSolver · GTO+ · HRC Pro",
     features: [
-      "OVH b3-64 — 16 vCPU / 64 GB RAM",
+      "16 vCPU / 64 GB RAM dedicated instance",
       "2 concurrent solver jobs",
       "Windows Server 2022 + RDP",
       "400 GB local NVMe solver cache",
@@ -161,7 +161,7 @@ export const omegaPlan: PlanDefinition = {
   description: "Custom-built solver farms — pick your vCPU, RAM, and NVMe",
   idealFor: "HRC Pro · PioSolver preflop · multi-solver farms",
   features: [
-    "Choose vCPU, RAM & NVMe from OVH Public Cloud flavors",
+    "Choose vCPU, RAM & NVMe to match your solver workload",
     "Up to full-machine concurrent solver jobs",
     "Windows Server 2022 + RDP",
     "1 TB+ permanent cloud vault included",
@@ -233,11 +233,25 @@ export function getPlanLabel(planId: string): string {
   return getPlanById(planId)?.name ?? planId;
 }
 
+export function formatPlanSpecSummary(input: {
+  vcpu: number;
+  ramGb: number;
+}): string {
+  return `${input.vcpu} vCPU / ${input.ramGb} GB RAM`;
+}
+
+export function getPlanSpecSummary(planId: string): string | null {
+  const plan = getPlanById(planId);
+  if (!plan || plan.customBuild || !plan.vcpu) return null;
+  return formatPlanSpecSummary(plan);
+}
+
 export function getPlanLabelWithTier(planId: string): string {
   const plan = getPlanById(planId);
   if (!plan) return planId;
   if (plan.customBuild) return `${plan.name} (Custom)`;
-  return `${plan.name} (${plan.ovhFlavor})`;
+  const spec = getPlanSpecSummary(planId);
+  return spec ? `${plan.name} (${spec})` : plan.name;
 }
 
 export function getOvhFlavorForPlan(planId: string): string | null {
@@ -266,7 +280,7 @@ export function getStripeProductName(planId: string): string {
 export const enterprisePlan = {
   id: "omega" as const,
   name: "Omega",
-  subtitle: "OVH Public Cloud · custom build",
+  subtitle: "Custom dedicated build",
   referenceSpec: "32–64 vCPU / 128–256 GB · up to 1.6 TB NVMe",
   startingPrice: omegaBuildFlavors[0]?.price ?? 799,
   contactEmail: "support@pokerprobe.com",
@@ -280,13 +294,6 @@ export const planComparisonRows = [
     grind: "$349",
     deepstack: "$579",
     omega: "From $899",
-  },
-  {
-    label: "OVH flavor",
-    hobby: "b3-16",
-    grind: "b3-32",
-    deepstack: "b3-64",
-    omega: "Custom",
   },
   {
     label: "vCPU / RAM",

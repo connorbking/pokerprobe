@@ -159,7 +159,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     provisionedAt: null,
     canceledAt: null,
     notes: customBuild
-      ? `Omega custom build: ${customBuild.ovhFlavor} (${customBuild.vcpu} vCPU / ${customBuild.ramGb} GB)`
+      ? `Omega custom build: ${customBuild.vcpu} vCPU / ${customBuild.ramGb} GB RAM`
       : "",
     provisionTags: getProvisionTagsForPlan(catalogPlan),
     installedSims: [],

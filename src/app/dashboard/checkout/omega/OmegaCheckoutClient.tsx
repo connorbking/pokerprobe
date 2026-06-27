@@ -81,8 +81,8 @@ export function OmegaCheckoutClient() {
           Build your Omega server
         </h1>
         <p className="mt-2 max-w-2xl text-gray-400">
-          Select vCPU, RAM, and NVMe from OVH Public Cloud flavors. Pricing
-          updates instantly — checkout when you are ready.
+          Select vCPU, RAM, and NVMe for your solver workload. Pricing updates
+          instantly — checkout when you are ready.
         </p>
       </div>
 
@@ -106,7 +106,9 @@ export function OmegaCheckoutClient() {
                   ${flavor.price}/mo
                 </span>
               </div>
-              <p className="mt-1 text-xs text-gray-500">{flavor.ovhFlavor}</p>
+              <p className="mt-1 text-xs text-gray-500">
+                {flavor.vcpu} vCPU · {flavor.ramGb} GB RAM
+              </p>
               <ul className="mt-4 space-y-1 text-sm text-gray-300">
                 <li>{flavor.vcpu} vCPU · {flavor.ramGb} GB RAM</li>
                 <li>{flavor.solverCacheGb} GB NVMe solver cache</li>
@@ -127,8 +129,8 @@ export function OmegaCheckoutClient() {
         <div className="mt-8 rounded-xl border border-white/10 bg-felt-800/40 p-6">
           <h3 className="text-lg font-semibold text-white">Your build summary</h3>
           <p className="mt-2 text-gray-300">
-            {selected.label} · {selected.ovhFlavor} · {selected.vcpu} vCPU /{" "}
-            {selected.ramGb} GB RAM · {selected.solverCacheGb} GB NVMe
+            {selected.label} · {selected.vcpu} vCPU / {selected.ramGb} GB RAM ·{" "}
+            {selected.solverCacheGb} GB NVMe
           </p>
           <p className="mt-1 text-2xl font-bold text-gold-400">
             ${selected.price}
