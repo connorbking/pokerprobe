@@ -1,4 +1,5 @@
 import type { PlanId } from "@/lib/firestore-server";
+import { normalizePlanId } from "@/lib/plans";
 
 export interface SimProgram {
   id: string;
@@ -6,7 +7,6 @@ export interface SimProgram {
   tag: string;
 }
 
-/** Poker simulators available per plan — drives provisioning tags and manage UI */
 export const simCatalog: SimProgram[] = [
   { id: "flopzilla", name: "Flopzilla", tag: "sim:flopzilla" },
   { id: "icmizer", name: "ICMIZER", tag: "sim:icmizer" },
@@ -15,22 +15,28 @@ export const simCatalog: SimProgram[] = [
   { id: "piosolver", name: "PioSolver", tag: "sim:piosolver" },
 ];
 
-const planSimIds: Record<PlanId, string[]> = {
-  starter: ["flopzilla", "icmizer", "gto-plus"],
-  pro: ["flopzilla", "icmizer", "gto-plus", "hrc", "piosolver"],
+const planSimIds: Record<string, string[]> = {
+  hobby: ["flopzilla", "icmizer"],
+  grind: ["flopzilla", "icmizer", "gto-plus"],
+  deepstack: ["flopzilla", "icmizer", "gto-plus", "hrc", "piosolver"],
+  omega: ["flopzilla", "icmizer", "gto-plus", "hrc", "piosolver"],
+  starter: ["flopzilla", "icmizer"],
+  pro: ["flopzilla", "icmizer", "gto-plus"],
   elite: ["flopzilla", "icmizer", "gto-plus", "hrc", "piosolver"],
+  enterprise: ["flopzilla", "icmizer", "gto-plus", "hrc", "piosolver"],
   baremetal: ["flopzilla", "icmizer", "gto-plus", "hrc", "piosolver"],
 };
 
-export function getSimsForPlan(planId: PlanId): SimProgram[] {
-  const ids = planSimIds[planId] ?? planSimIds.starter;
+export function getSimsForPlan(planId: PlanId | string): SimProgram[] {
+  const normalized = normalizePlanId(planId) ?? planId;
+  const ids = planSimIds[normalized] ?? planSimIds.hobby;
   return simCatalog.filter((sim) => ids.includes(sim.id));
 }
 
-/** Tags passed to provisioning (Hetzner labels / cloud-init) to install the right sim stack */
-export function getProvisionTagsForPlan(planId: PlanId): string[] {
-  const base = ["pokerprobe", `plan:${planId}`];
-  const simTags = getSimsForPlan(planId).map((sim) => sim.tag);
+export function getProvisionTagsForPlan(planId: PlanId | string): string[] {
+  const normalized = normalizePlanId(planId) ?? planId;
+  const base = ["pokerprobe", `plan:${normalized}`];
+  const simTags = getSimsForPlan(normalized).map((sim) => sim.tag);
   return [...base, ...simTags];
 }
 

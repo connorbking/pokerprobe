@@ -27,13 +27,13 @@ const features = [
     icon: "🔒",
     title: "Isolated & Secure",
     description:
-      "Each server runs in an isolated environment with encrypted storage and optional VPN access for your study data.",
+      "Each server runs in an isolated environment. Solver cache lives on local SSD; long-term data stays in your encrypted cloud vault.",
   },
   {
     icon: "📁",
-    title: "File Sync",
+    title: "Dual-Zone Storage",
     description:
-      "Upload ranges, tree configs, and results via secure file sync. No more emailing yourself .hrc files.",
+      "Fast local NVMe on each OVH instance for active solver work, plus a separate permanent cloud vault for archives. Upgrade vault capacity without changing compute tier.",
   },
 ];
 

@@ -10,6 +10,8 @@ import {
   buildMyrtilleDesktopUrl,
   buildServerHostPart,
 } from "@/lib/server-hostname";
+import { deleteHetznerServer } from "@/lib/hetzner/compute";
+import { teardownUserServer } from "@/lib/hetzner/deploy";
 
 export interface AutoProvisionInput {
   serverId: string;
@@ -121,16 +123,33 @@ export async function autoProvisionServerDesktop(
   };
 }
 
-/** Terminate server, remove DNS, clear desktop access. */
+/** Terminate server, remove DNS, tear down Hetzner compute, clear desktop access. */
 export async function terminateServerRecord(
-  server: Pick<Server, "id" | "cloudflareDnsRecordId">
+  server: Pick<
+    Server,
+    "id" | "userId" | "cloudflareDnsRecordId" | "hetznerServerId" | "status"
+  >
 ): Promise<void> {
+  if (server.hetznerServerId && server.userId) {
+    try {
+      if (server.status === "online" || server.status === "active") {
+        await teardownUserServer(server.userId, server.id);
+      } else {
+        await deleteHetznerServer(server.hetznerServerId);
+      }
+    } catch (err) {
+      console.error("[TERMINATE] Hetzner cleanup failed:", err);
+    }
+  }
+
   await deprovisionServerDns(server);
   await updateServer(server.id, {
     status: "terminated",
     canceledAt: new Date().toISOString(),
     cancelAtPeriodEnd: false,
     guacamoleUrl: null,
+    hetznerServerId: null,
+    ip: null,
   });
 }
 

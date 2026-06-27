@@ -20,14 +20,38 @@ import {
   emailToUserSlugBase,
 } from "./user-slug";
 
-export type PlanId = "starter" | "pro" | "elite" | "baremetal";
+export type PlanId =
+  | "hobby"
+  | "grind"
+  | "deepstack"
+  | "omega"
+  | "starter"
+  | "pro"
+  | "elite"
+  | "enterprise"
+  | "baremetal";
+
+export interface CustomBuildSpec {
+  flavorId: string;
+  ovhFlavor: string;
+  vcpu: number;
+  ramGb: number;
+  solverCacheGb: number;
+  publicNetworkGbps: number;
+  priceMonthlyUsd: number;
+}
 export type ServerType = "cloud" | "dedicated";
 export type ServerStatus =
   | "pending"
   | "provisioning"
   | "active"
   | "suspended"
-  | "terminated";
+  | "terminated"
+  /** Ephemeral orchestration lifecycle (Hetzner dual-zone) */
+  | "stopped"
+  | "online"
+  | "syncing"
+  | "deprovisioning";
 
 export interface Server {
   id: string;
@@ -65,6 +89,7 @@ export interface Server {
   /** Live metrics — populated when monitoring is wired up */
   cpuUsedPercent?: number | null;
   memoryUsedGb?: number | null;
+  /** Live metric — local SSD solver cache usage on the ephemeral server */
   storageUsedGb?: number | null;
   activeVcpus?: number | null;
   uptimeSeconds?: number | null;
@@ -72,6 +97,22 @@ export interface Server {
   provisionTags?: string[];
   /** Sim programs reported installed on the server */
   installedSims?: string[];
+  /** Cloud instance flavor (OVH b3-*); legacy field name hetznerType retained */
+  hetznerType?: string | null;
+  /** OVH Public Cloud flavor, e.g. b3-64 */
+  ovhFlavor?: string | null;
+  /** Omega custom build selections at checkout */
+  customBuild?: CustomBuildSpec | null;
+  /** ISO timestamp when ephemeral server booted (orchestration uptime) */
+  uptimeStartedAt?: string | null;
+  /** Stripe subscription line item for storage vault add-on */
+  stripeStorageItemId?: string | null;
+  /** Hetzner Object Storage bucket linked to this workspace */
+  linkedStorageBucket?: string | null;
+  /** Permanent cloud vault capacity (GB) from active storage add-on */
+  storageLimitGB?: number | null;
+  /** Active Stripe price ID for the storage vault line item */
+  stripeStoragePriceId?: string | null;
 }
 
 export interface FirestoreUser {
@@ -82,6 +123,22 @@ export interface FirestoreUser {
   stripeCustomerId: string | null;
   createdAt: string;
   isAdmin?: boolean;
+  /** Hetzner Storage Box subaccount — server-side only, never expose to client */
+  hetznerStorage?: HetznerStorageSubaccount | null;
+}
+
+/** Credentials for a user's isolated Storage Box subaccount on the parent container */
+export interface HetznerStorageSubaccount {
+  subaccountId: number;
+  username: string;
+  password: string;
+  /** Connection host, e.g. u123456.your-storagebox.de */
+  host: string;
+  /** Full connection URL, e.g. sftp://u123456.your-storagebox.de */
+  hostUrl: string;
+  homeDirectory: string;
+  parentStorageBoxId: number;
+  provisionedAt: string;
 }
 
 function getFirestoreEnv() {
@@ -502,6 +559,19 @@ export async function updateUserStripeCustomerId(
     projectId,
     `users/${uid}`,
     { stripeCustomerId },
+    token
+  );
+}
+
+export async function updateUserHetznerStorage(
+  uid: string,
+  hetznerStorage: HetznerStorageSubaccount | null
+): Promise<void> {
+  const { projectId, token } = await getToken();
+  await firestoreUpdate(
+    projectId,
+    `users/${uid}`,
+    { hetznerStorage },
     token
   );
 }

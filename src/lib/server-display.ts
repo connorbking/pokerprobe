@@ -1,21 +1,52 @@
 import type { PlanId, Server } from "@/lib/firestore-server";
+import { getPlanById, normalizePlanId } from "@/lib/plans";
 import { resolveServerFqdn } from "@/lib/server-hostname";
+import { resolveStorageLimitGb } from "@/lib/storage-vault";
 
 export interface PlanResourceSpec {
   vcpu: number;
   ramGb: number;
-  storageGb: number;
+  /** Local NVMe on the OVH instance — ephemeral solver cache */
+  solverCacheGb: number;
 }
 
-const PLAN_SPECS: Record<PlanId, PlanResourceSpec> = {
-  starter: { vcpu: 8, ramGb: 32, storageGb: 240 },
-  pro: { vcpu: 16, ramGb: 64, storageGb: 360 },
-  elite: { vcpu: 32, ramGb: 128, storageGb: 600 },
-  baremetal: { vcpu: 32, ramGb: 128, storageGb: 600 },
+const LEGACY_PLAN_SPECS: Record<string, PlanResourceSpec> = {
+  starter: { vcpu: 4, ramGb: 16, solverCacheGb: 100 },
+  pro: { vcpu: 8, ramGb: 32, solverCacheGb: 200 },
+  elite: { vcpu: 16, ramGb: 64, solverCacheGb: 400 },
+  enterprise: { vcpu: 32, ramGb: 128, solverCacheGb: 800 },
+  baremetal: { vcpu: 64, ramGb: 256, solverCacheGb: 1600 },
 };
 
-export function getPlanResourceSpec(plan: PlanId): PlanResourceSpec {
-  return PLAN_SPECS[plan];
+export function getPlanResourceSpec(plan: PlanId | string): PlanResourceSpec {
+  if (LEGACY_PLAN_SPECS[plan]) {
+    return LEGACY_PLAN_SPECS[plan]!;
+  }
+
+  const normalized = normalizePlanId(plan);
+  const definition = normalized ? getPlanById(normalized) : null;
+  if (definition && !definition.customBuild) {
+    return {
+      vcpu: definition.vcpu,
+      ramGb: definition.ramGb,
+      solverCacheGb: definition.solverCacheGb,
+    };
+  }
+
+  return { vcpu: 4, ramGb: 16, solverCacheGb: 100 };
+}
+
+export function getServerResourceSpec(
+  server: Pick<Server, "plan" | "customBuild">
+): PlanResourceSpec {
+  if (server.customBuild) {
+    return {
+      vcpu: server.customBuild.vcpu,
+      ramGb: server.customBuild.ramGb,
+      solverCacheGb: server.customBuild.solverCacheGb,
+    };
+  }
+  return getPlanResourceSpec(server.plan);
 }
 
 export function isServerSettingUp(server: Pick<Server, "status">): boolean {
@@ -35,8 +66,9 @@ export function getServerAddress(server: Server): string {
   return "Assigning subdomain";
 }
 
-/** Host for Microsoft Remote Desktop (FQDN preferred, else public IP). */
-export function getRdpHost(server: Pick<Server, "hostname" | "serverSlug" | "userSlug" | "ip" | "status">): string | null {
+export function getRdpHost(
+  server: Pick<Server, "hostname" | "serverSlug" | "userSlug" | "ip" | "status">
+): string | null {
   const fqdn = resolveServerFqdn(server.hostname, server.serverSlug, server.userSlug);
   if (fqdn) {
     return fqdn;
@@ -98,11 +130,13 @@ export interface ServerStatRow {
   label: string;
   value: string;
   mono?: boolean;
+  tooltip?: string;
+  action?: "vault-upgrade";
 }
 
 export function getServerStatRows(server: Server): ServerStatRow[] {
   const pending = isServerSettingUp(server);
-  const spec = getPlanResourceSpec(server.plan);
+  const spec = getServerResourceSpec(server);
 
   const cpuValue = pending
     ? "-- / -- vCPU"
@@ -127,8 +161,30 @@ export function getServerStatRows(server: Server): ServerStatRow[] {
       value: formatUsagePair(server.memoryUsedGb, spec.ramGb, "GB", pending),
     },
     {
-      label: "Storage",
-      value: formatUsagePair(server.storageUsedGb, spec.storageGb, "GB", pending),
+      label: "Solver cache",
+      value: formatUsagePair(
+        server.storageUsedGb,
+        spec.solverCacheGb,
+        "GB",
+        pending
+      ),
+      tooltip:
+        "Local NVMe on your OVH instance. Ephemeral working space for active solves — syncs to your cloud vault on shutdown.",
+    },
+    {
+      label: "Cloud vault",
+      value: formatUsagePair(
+        null,
+        resolveStorageLimitGb(server.plan, {
+          storageLimitGB: server.storageLimitGB,
+          stripeStoragePriceId: server.stripeStoragePriceId,
+        }),
+        "GB",
+        pending
+      ),
+      tooltip:
+        "Permanent archive storage included with your plan; upgrade for more capacity.",
+      action: pending ? undefined : "vault-upgrade",
     },
     {
       label: "CPU",
@@ -136,9 +192,10 @@ export function getServerStatRows(server: Server): ServerStatRow[] {
     },
     {
       label: "CPU load",
-      value: pending || server.cpuUsedPercent == null
-        ? "--"
-        : `${server.cpuUsedPercent}%`,
+      value:
+        pending || server.cpuUsedPercent == null
+          ? "--"
+          : `${server.cpuUsedPercent}%`,
     },
   ];
 }

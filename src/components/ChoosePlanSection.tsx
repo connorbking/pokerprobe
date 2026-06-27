@@ -2,9 +2,15 @@
 
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { enterprisePlan, planComparisonRows, pricingPlans } from "@/lib/config";
+import {
+  enterprisePlan,
+  omegaPlan,
+  planComparisonRows,
+  pricingPlans,
+} from "@/lib/plans";
+import { siteConfig } from "@/lib/config";
 
-const planColumnKeys = ["starter", "pro", "elite"] as const;
+const planColumnKeys = pricingPlans.map((plan) => plan.id);
 
 function ComparisonCell({ value }: { value: string | boolean }) {
   if (typeof value === "boolean") {
@@ -33,7 +39,7 @@ function PlanComparisonTable({
         Full feature breakdown across every tier.
       </p>
       <div className="mt-4 overflow-x-auto rounded-xl border border-white/5">
-        <table className="w-full min-w-[800px] border-collapse text-left text-sm">
+        <table className="w-full min-w-[900px] border-collapse text-left text-sm">
           <thead>
             <tr className="border-b border-white/10 bg-felt-800/60">
               <th className="px-4 py-3 font-medium text-gray-400">Feature</th>
@@ -45,6 +51,9 @@ function PlanComparisonTable({
                   }`}
                 >
                   {plan.name}
+                  <span className="mt-0.5 block text-xs font-normal text-gray-400">
+                    {plan.customBuild ? "Custom build" : plan.ovhFlavor}
+                  </span>
                   {plan.highlighted && (
                     <span className="mt-1 block text-xs font-normal text-gold-400/70">
                       Popular
@@ -52,12 +61,6 @@ function PlanComparisonTable({
                   )}
                 </th>
               ))}
-              <th className="px-4 py-3 font-semibold text-white">
-                {enterprisePlan.name}
-                <span className="mt-1 block text-xs font-normal text-gray-400">
-                  {enterprisePlan.subtitle}
-                </span>
-              </th>
             </tr>
           </thead>
           <tbody>
@@ -71,12 +74,13 @@ function PlanComparisonTable({
                 </td>
                 {planColumnKeys.map((key) => (
                   <td key={key} className="border-t border-white/5 px-4 py-3">
-                    <ComparisonCell value={row[key]} />
+                    <ComparisonCell
+                      value={
+                        row[key as keyof typeof row] as string | boolean
+                      }
+                    />
                   </td>
                 ))}
-                <td className="border-t border-white/5 px-4 py-3">
-                  <ComparisonCell value={row.enterprise} />
-                </td>
               </tr>
             ))}
             <tr className="border-t border-white/10 bg-felt-800/40">
@@ -92,18 +96,10 @@ function PlanComparisonTable({
                         : "border border-white/15 text-white hover:bg-white/5"
                     }`}
                   >
-                    Get {plan.name}
+                    {plan.customBuild ? "Build Omega" : `Get ${plan.name}`}
                   </button>
                 </td>
               ))}
-              <td className="px-4 py-4">
-                <a
-                  href={`mailto:${enterprisePlan.contactEmail}?subject=${encodeURIComponent(enterprisePlan.contactSubject)}`}
-                  className="block w-full rounded-lg border border-white/15 py-2.5 text-center text-sm font-semibold text-white transition hover:bg-white/5"
-                >
-                  Contact sales
-                </a>
-              </td>
             </tr>
           </tbody>
         </table>
@@ -120,6 +116,10 @@ export function ChoosePlanSection({
   const router = useRouter();
 
   const handleSubscribe = (planId: string) => {
+    if (planId === "omega") {
+      router.push("/dashboard/checkout/omega");
+      return;
+    }
     router.push(`/dashboard/checkout/${planId}`);
   };
 
@@ -129,8 +129,11 @@ export function ChoosePlanSection({
         Choose a plan
       </h1>
       <p className="mt-2 text-gray-400">{subtitle}</p>
+      <p className="mt-3 max-w-3xl text-sm text-gray-500">
+        {siteConfig.dualZoneStorageNote}
+      </p>
 
-      <div className="mt-8 grid gap-4 lg:grid-cols-3">
+      <div className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {pricingPlans.map((plan) => (
           <div
             key={plan.id}
@@ -141,23 +144,35 @@ export function ChoosePlanSection({
             }`}
           >
             <div className="flex items-center justify-between gap-3">
-              <h3 className="text-lg font-bold text-white">{plan.name}</h3>
+              <div>
+                <h3 className="text-lg font-bold text-white">{plan.name}</h3>
+                <p className="text-xs font-medium text-gray-500">
+                  {plan.customBuild ? "Custom OVH build" : plan.ovhFlavor}
+                </p>
+              </div>
               {plan.highlighted && (
                 <span className="shrink-0 rounded-full bg-gold-500 px-2.5 py-0.5 text-xs font-semibold text-felt-950">
-                  Most Popular
+                  Popular
                 </span>
               )}
             </div>
             <p className="mt-1 text-sm text-gray-400">{plan.description}</p>
-            {"idealFor" in plan && plan.idealFor && (
-              <p className="mt-2 text-xs font-medium text-gold-400/80">
-                {plan.idealFor}
-              </p>
-            )}
+            <p className="mt-2 text-xs font-medium text-gold-400/80">
+              {plan.idealFor}
+            </p>
             <div className="mt-4 flex items-baseline gap-1">
-              <span className="text-3xl font-bold text-gold-400">
-                ${plan.price}
-              </span>
+              {plan.customBuild ? (
+                <>
+                  <span className="text-lg text-gray-400">From</span>
+                  <span className="text-3xl font-bold text-gold-400">
+                    ${enterprisePlan.startingPrice}
+                  </span>
+                </>
+              ) : (
+                <span className="text-3xl font-bold text-gold-400">
+                  ${plan.price}
+                </span>
+              )}
               <span className="text-gray-500">/mo</span>
             </div>
             <ul className="mt-4 flex-1 space-y-2">
@@ -177,7 +192,7 @@ export function ChoosePlanSection({
                   : "border border-white/15 text-white hover:bg-white/5"
               }`}
             >
-              Get {plan.name}
+              {plan.customBuild ? "Build your Omega" : `Get ${plan.name}`}
             </button>
           </div>
         ))}

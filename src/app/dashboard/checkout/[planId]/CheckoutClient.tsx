@@ -8,7 +8,7 @@ import {
 } from "@stripe/react-stripe-js";
 import { usePublicConfig } from "@/context/PublicConfigContext";
 import { getStripePromise } from "@/lib/stripe-client";
-import { getPlanById } from "@/lib/config";
+import { enterprisePlan, getPlanById } from "@/lib/plans";
 
 export function CheckoutClient({ planId }: { planId: string }) {
   const { stripePublishableKey } = usePublicConfig();

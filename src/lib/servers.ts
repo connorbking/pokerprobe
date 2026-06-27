@@ -1,14 +1,35 @@
-import type { Server, ServerStatus } from "@/lib/firestore-server";
-
-const PLAN_LABELS: Record<string, string> = {
-  starter: "Study",
-  pro: "Solver",
-  elite: "Farm",
-  baremetal: "Bare Metal",
-};
+import type { PlanId, Server, ServerStatus } from "@/lib/firestore-server";
+import {
+  getPlanById,
+  getPlanLabel as planLabel,
+  getPlanLabelWithTier as planLabelWithTier,
+  isKnownPlanId as plansIsKnown,
+  normalizePlanId,
+} from "@/lib/plans";
 
 export function getPlanLabel(plan: string): string {
-  return PLAN_LABELS[plan] ?? plan;
+  return planLabel(plan);
+}
+
+export function getPlanLabelWithTier(plan: string): string {
+  const normalized = normalizePlanId(plan);
+  if (normalized === "omega") {
+    return planLabelWithTier(plan);
+  }
+  return planLabelWithTier(plan);
+}
+
+export function getPlanOvhFlavor(plan: string): string | null {
+  return getPlanById(plan)?.ovhFlavor ?? null;
+}
+
+/** @deprecated Use getPlanOvhFlavor */
+export function getPlanHetznerSku(plan: string): string | null {
+  return getPlanOvhFlavor(plan);
+}
+
+export function isKnownPlanId(planId: string): planId is PlanId {
+  return plansIsKnown(planId);
 }
 
 export type ServerStatusLightColor = "green" | "red";
@@ -27,15 +48,22 @@ export function getServerDisplayStatus(
       return { label: "Cannot access", color: "red" };
     case "terminated":
       return { label: "Offline", color: "red" };
+    case "stopped":
+      return { label: "Stopped", color: "red" };
+    case "online":
+      return { label: "Online", color: "green" };
+    case "syncing":
+      return { label: "Syncing vault", color: "red" };
+    case "deprovisioning":
+      return { label: "Shutting down", color: "red" };
   }
 }
 
-/** Status indicator: green when online, red when off or unreachable */
 export function getServerStatusLightColor(
   server: Pick<Server, "status">,
   options: { effectiveOnline?: boolean } = {}
 ): ServerStatusLightColor {
-  if (options.effectiveOnline ?? server.status === "active") {
+  if (options.effectiveOnline ?? isServerOnline(server)) {
     return "green";
   }
   return "red";
@@ -48,14 +76,14 @@ export function getServerStatusLabel(
   if (options.previewMode) {
     return "Online (mocked)";
   }
-  if (options.effectiveOnline ?? server.status === "active") {
+  if (options.effectiveOnline ?? isServerOnline(server)) {
     return "Online";
   }
   return getServerDisplayStatus(server).label;
 }
 
 export function isServerOnline(server: Pick<Server, "status">): boolean {
-  return server.status === "active";
+  return server.status === "active" || server.status === "online";
 }
 
 export function canAccessServerManage(
@@ -70,4 +98,18 @@ export function canAccessServerManage(
 
 export function isVisibleServerStatus(status: ServerStatus): boolean {
   return status !== "terminated";
+}
+
+export function getServerSpecLabel(
+  server: Pick<Server, "plan" | "customBuild" | "ovhFlavor">
+): string {
+  if (server.customBuild) {
+    const { vcpu, ramGb, solverCacheGb, ovhFlavor } = server.customBuild;
+    return `${ovhFlavor} — ${vcpu} vCPU / ${ramGb} GB · ${solverCacheGb} GB NVMe`;
+  }
+  const plan = getPlanById(server.plan);
+  if (plan && !plan.customBuild) {
+    return `${plan.ovhFlavor} — ${plan.vcpu} vCPU / ${plan.ramGb} GB · ${plan.solverCacheGb} GB NVMe`;
+  }
+  return server.ovhFlavor ?? getPlanLabel(server.plan);
 }

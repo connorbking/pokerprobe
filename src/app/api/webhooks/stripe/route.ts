@@ -4,6 +4,7 @@ import Stripe from "stripe";
 import {
   createServer,
   getServersBySubscriptionId,
+  getServersByUserId,
   updateServer,
   upsertUser,
   allocateServerSlug,
@@ -17,8 +18,18 @@ import {
 import { getProvisionTagsForPlan } from "@/lib/sim-catalog";
 import { getProvisioningDefaults } from "@/lib/provision-defaults";
 import { buildServerHostPart } from "@/lib/server-hostname";
-import { getStripe, planFromPriceId } from "@/lib/stripe";
+import { getStripe, resolveCheckoutPlanId } from "@/lib/stripe";
 import { subscriptionPeriodEnd } from "@/lib/stripe-billing";
+import { extractPaidStorageBillingFromSubscription } from "@/lib/stripe-storage";
+import { getIncludedVaultLimitGb } from "@/lib/storage-vault";
+import { getHetznerSkuForPlan, getHetznerSkuForCustomBuild } from "@/lib/hetzner/plan-skus";
+import { clearUserStorageSubaccount } from "@/lib/hetzner/storage";
+import { provisionServerVault } from "@/lib/hetzner/vault";
+import {
+  getOmegaBuildFlavor,
+  getPlanLabel,
+} from "@/lib/plans";
+import type { CustomBuildSpec } from "@/lib/firestore-server";
 
 function logManualProvisioning(event: Stripe.Event) {
   const timestamp = new Date().toISOString();
@@ -85,24 +96,38 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     return;
   }
 
-  const subscription = await stripe.subscriptions.retrieve(subscriptionId);
-  const priceId = subscription.items.data[0]?.price.id ?? session.metadata?.planId ?? "";
-  const planSlug = planFromPriceId(priceId) ?? "starter";
-  const plan = planSlug as PlanId;
-  const serverType: ServerType = plan === "baremetal" ? "dedicated" : "cloud";
+  const subscription = await stripe.subscriptions.retrieve(subscriptionId, {
+    expand: ["items.data.price"],
+  });
+  const priceId = subscription.items.data[0]?.price.id ?? "";
+  const meta = session.metadata ?? subscription.metadata ?? {};
+
+  const catalogPlan = resolveCheckoutPlanId({
+    metadataPlanId: meta.planId,
+    priceId,
+  });
+  const plan = catalogPlan as PlanId;
+  const serverType: ServerType = "cloud";
+
+  const customBuild = parseCustomBuildFromMetadata(meta);
+  const sku =
+    customBuild
+      ? getHetznerSkuForCustomBuild(customBuild.flavorId)
+      : getHetznerSkuForPlan(catalogPlan);
+
+  const ovhFlavor =
+    customBuild?.ovhFlavor ?? sku?.hetznerSku ?? null;
+
+  const includedVaultGb =
+    customBuild && getOmegaBuildFlavor(customBuild.flavorId)
+      ? getOmegaBuildFlavor(customBuild.flavorId)!.includedVaultGb
+      : getIncludedVaultLimitGb(catalogPlan);
 
   const user = await upsertUser(userId, userEmail, customerId);
   const userSlug = user.userSlug;
 
   const serverSlug = await allocateServerSlug();
   const hostname = buildServerHostPart(serverSlug);
-
-  const planLabels: Record<PlanId, string> = {
-    starter: "Study",
-    pro: "Solver",
-    elite: "Farm",
-    baremetal: "Bare Metal",
-  };
 
   const originDefaults = await getProvisioningDefaults();
 
@@ -122,11 +147,21 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     username: null,
     guacamoleUrl: null,
     hetznerServerId: null,
-    label: `${planLabels[plan]} server`,
+    hetznerType: ovhFlavor,
+    ovhFlavor,
+    customBuild,
+    stripeStorageItemId: null,
+    stripeStoragePriceId: null,
+    storageLimitGB: includedVaultGb,
+    linkedStorageBucket: null,
+    uptimeStartedAt: null,
+    label: `${getPlanLabel(catalogPlan)} server`,
     provisionedAt: null,
     canceledAt: null,
-    notes: "",
-    provisionTags: getProvisionTagsForPlan(plan),
+    notes: customBuild
+      ? `Omega custom build: ${customBuild.ovhFlavor} (${customBuild.vcpu} vCPU / ${customBuild.ramGb} GB)`
+      : "",
+    provisionTags: getProvisionTagsForPlan(catalogPlan),
     installedSims: [],
   });
 
@@ -151,13 +186,75 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     });
   }
 
+  try {
+    const vault = await provisionServerVault({
+      serverId: server.id,
+      userId,
+      planId: catalogPlan,
+    });
+    console.log(
+      `[VAULT PROVISIONED] serverId=${server.id} home=${vault.homeDirectory} limitGb=${vault.storageLimitGB}`
+    );
+  } catch (err) {
+    console.error("[VAULT PROVISION] failed:", err);
+    await updateServer(server.id, {
+      notes: `${server.notes ? `${server.notes} ` : ""}Vault provision failed: ${
+        err instanceof Error ? err.message : String(err)
+      }`.trim(),
+    });
+  }
+
   logManualProvisioning({
     type: "checkout.session.completed",
     data: { object: session },
   } as Stripe.Event);
 }
 
+function parseCustomBuildFromMetadata(
+  meta: Record<string, string>
+): CustomBuildSpec | null {
+  const flavorId = meta.customBuildFlavorId;
+  if (!flavorId) return null;
+
+  const catalogFlavor = getOmegaBuildFlavor(flavorId);
+  if (catalogFlavor) {
+    return {
+      flavorId: catalogFlavor.id,
+      ovhFlavor: catalogFlavor.ovhFlavor,
+      vcpu: catalogFlavor.vcpu,
+      ramGb: catalogFlavor.ramGb,
+      solverCacheGb: catalogFlavor.solverCacheGb,
+      publicNetworkGbps: catalogFlavor.publicNetworkGbps,
+      priceMonthlyUsd: catalogFlavor.price,
+    };
+  }
+
+  const vcpu = Number(meta.customBuildVcpu);
+  const ramGb = Number(meta.customBuildRamGb);
+  const solverCacheGb = Number(meta.customBuildStorageGb);
+  const priceMonthlyUsd = Number(meta.customBuildPriceUsd);
+
+  if (!meta.customBuildOvhFlavor || !vcpu || !ramGb) {
+    return null;
+  }
+
+  return {
+    flavorId,
+    ovhFlavor: meta.customBuildOvhFlavor,
+    vcpu,
+    ramGb,
+    solverCacheGb: solverCacheGb || 0,
+    publicNetworkGbps: 8,
+    priceMonthlyUsd: priceMonthlyUsd || 0,
+  };
+}
+
 async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
+  const stripe = getStripe();
+  const fullSubscription = await stripe.subscriptions.retrieve(subscription.id, {
+    expand: ["items.data.price"],
+  });
+
   const servers = await getServersBySubscriptionId(subscription.id);
   if (servers.length === 0) return;
 
@@ -166,6 +263,8 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
     ? new Date(periodEndUnix * 1000).toISOString()
     : null;
 
+  const paidStorage = extractPaidStorageBillingFromSubscription(fullSubscription);
+
   for (const server of servers) {
     if (server.status === "terminated") continue;
 
@@ -173,6 +272,12 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
       cancelAtPeriodEnd: subscription.cancel_at_period_end,
       currentPeriodEnd: periodEnd,
     };
+
+    if (paidStorage) {
+      patch.stripeStorageItemId = paidStorage.storageItemId;
+      patch.stripeStoragePriceId = paidStorage.storagePriceId;
+      patch.storageLimitGB = paidStorage.storageLimitGB;
+    }
 
     if (subscription.status === "past_due" || subscription.status === "unpaid") {
       patch.status = "suspended";
@@ -186,9 +291,27 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
 
 async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
   const servers = await getServersBySubscriptionId(subscription.id);
+  const userIds = new Set<string>();
 
   for (const server of servers) {
+    userIds.add(server.userId);
     await terminateServerRecord(server);
+  }
+
+  for (const userId of userIds) {
+    const remaining = (await getServersByUserId(userId)).filter(
+      (s) => s.status !== "terminated"
+    );
+    if (remaining.length === 0) {
+      try {
+        await clearUserStorageSubaccount(userId);
+      } catch (err) {
+        console.error(
+          `[SUBSCRIPTION DELETED] Storage subaccount cleanup failed for ${userId}:`,
+          err
+        );
+      }
+    }
   }
 }
 

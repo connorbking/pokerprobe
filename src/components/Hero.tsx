@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
 
-const suits = ["♠", "♥", "♦", "♣"];
+const suits = ["♠", "♥", "♣", "♦" ];
 
 export function Hero() {
   const { user } = useAuth();

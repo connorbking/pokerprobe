@@ -72,6 +72,10 @@ function DashboardContent() {
   const [loadingServers, setLoadingServers] = useState(true);
   const [serversError, setServersError] = useState<string | null>(null);
 
+  const [storageUpgradingId, setStorageUpgradingId] = useState<string | null>(
+    null
+  );
+
   const clearServers = useCallback(() => {
     setServers([]);
     setServersError(null);
@@ -180,6 +184,28 @@ function DashboardContent() {
     );
   };
 
+  const handleStorageUpgradeStarted = (serverId: string) => {
+    setStorageUpgradingId(serverId);
+  };
+
+  const handleStorageUpgraded = (
+    serverId: string,
+    result: { storageLimitGB: number; stripeStoragePriceId: string }
+  ) => {
+    setServers((prev) =>
+      prev.map((s) =>
+        s.id === serverId
+          ? {
+              ...s,
+              storageLimitGB: result.storageLimitGB,
+              stripeStoragePriceId: result.stripeStoragePriceId,
+            }
+          : s
+      )
+    );
+    setStorageUpgradingId(null);
+  };
+
   if (authLoading || !user) {
     return (
       <div className="flex items-center gap-3 p-12 text-gray-400">
@@ -275,6 +301,9 @@ function DashboardContent() {
                 server={server}
                 onManageBilling={handleManageBilling}
                 onLabelUpdated={handleLabelUpdated}
+                onStorageUpgraded={handleStorageUpgraded}
+                onStorageUpgradeStart={handleStorageUpgradeStarted}
+                storageUpgrading={storageUpgradingId === server.id}
               />
             ))}
             <AddServerTile />

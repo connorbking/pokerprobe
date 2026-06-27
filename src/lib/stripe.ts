@@ -1,10 +1,18 @@
 import Stripe from "stripe";
+import { normalizePlanId, type PlanId } from "@/lib/plans";
 
-/** Stripe Price IDs — Study / Solver / Farm */
+/** Stripe Price IDs — Hobby / Grind / Deep Stack (Omega uses dynamic checkout) */
 export const STRIPE_PRICE_IDS = {
-  starter: "price_1TmHyaIjjUzEL2aMgI3SKxkr",
-  pro: "price_1TmHyaIjjUzEL2aM5EEon6Xj",
-  elite: "price_1TmHyaIjjUzEL2aM2PRygnj3",
+  hobby:
+    process.env.STRIPE_PRICE_HOBBY ??
+    process.env.STRIPE_PRICE_STARTER ??
+    "",
+  grind:
+    process.env.STRIPE_PRICE_GRIND ?? process.env.STRIPE_PRICE_PRO ?? "",
+  deepstack:
+    process.env.STRIPE_PRICE_DEEPSTACK ??
+    process.env.STRIPE_PRICE_ELITE ??
+    "",
 } as const;
 
 export function getStripe() {
@@ -20,25 +28,53 @@ export function getStripe() {
 }
 
 export function getPriceId(planId: string): string | null {
-  const map: Record<string, string | undefined> = {
-    starter: STRIPE_PRICE_IDS.starter,
-    pro: STRIPE_PRICE_IDS.pro,
-    elite: STRIPE_PRICE_IDS.elite,
-    baremetal: process.env.STRIPE_PRICE_BAREMETAL,
+  const normalized = normalizePlanId(planId);
+  if (!normalized || normalized === "omega") return null;
+
+  const map: Record<Exclude<PlanId, "omega">, string | undefined> = {
+    hobby: STRIPE_PRICE_IDS.hobby,
+    grind: STRIPE_PRICE_IDS.grind,
+    deepstack: STRIPE_PRICE_IDS.deepstack,
   };
-  return map[planId] ?? null;
+
+  return map[normalized] || null;
 }
 
-export function planFromPriceId(priceId: string): string | null {
-  const pairs: Array<[string | undefined, string]> = [
-    [STRIPE_PRICE_IDS.starter, "starter"],
-    [STRIPE_PRICE_IDS.pro, "pro"],
-    [STRIPE_PRICE_IDS.elite, "elite"],
-    [process.env.STRIPE_PRICE_BAREMETAL, "baremetal"],
+export function planFromPriceId(priceId: string): PlanId | null {
+  const pairs: Array<[string | undefined, PlanId]> = [
+    [STRIPE_PRICE_IDS.hobby, "hobby"],
+    [STRIPE_PRICE_IDS.grind, "grind"],
+    [STRIPE_PRICE_IDS.deepstack, "deepstack"],
+    [process.env.STRIPE_PRICE_STARTER, "hobby"],
+    [process.env.STRIPE_PRICE_PRO, "grind"],
+    [process.env.STRIPE_PRICE_ELITE, "deepstack"],
+    [process.env.STRIPE_PRICE_ENTERPRISE, "omega"],
+    [process.env.STRIPE_PRICE_BAREMETAL, "omega"],
+    // Legacy hardcoded test prices
+    ["price_1TmHyaIjjUzEL2aMgI3SKxkr", "hobby"],
+    ["price_1TmHyaIjjUzEL2aM5EEon6Xj", "grind"],
+    ["price_1TmHyaIjjUzEL2aM2PRygnj3", "deepstack"],
   ];
 
   for (const [envPrice, plan] of pairs) {
     if (envPrice && envPrice === priceId) return plan;
   }
   return null;
+}
+
+export function resolveCheckoutPlanId(input: {
+  metadataPlanId?: string | null;
+  priceId?: string | null;
+}): PlanId {
+  const fromMeta = input.metadataPlanId
+    ? normalizePlanId(input.metadataPlanId)
+    : null;
+  if (fromMeta) return fromMeta;
+
+  if (input.priceId) {
+    const fromPrice = planFromPriceId(input.priceId);
+    if (fromPrice) return fromPrice;
+  }
+
+  return "hobby";
 }

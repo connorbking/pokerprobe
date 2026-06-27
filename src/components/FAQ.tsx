@@ -5,7 +5,7 @@ const faqs = [
   },
   {
     q: "Which plan do I need for PioSolver?",
-    a: "Postflop solves (8–16 GB trees) fit the Solver plan (64 GB RAM). Preflop trees need at least 64 GB RAM per PioSolver's guidance — use Farm (128 GB) or Enterprise for the largest builds.",
+    a: "Postflop solves (8–16 GB trees) fit Deep Stack (b3-64, 64 GB RAM). Preflop trees need at least 64 GB RAM per PioSolver's guidance — use Omega with a custom build for the largest farms.",
   },
   {
     q: "How fast is server provisioning?",
@@ -16,8 +16,8 @@ const faqs = [
     a: "Yes. Changes take effect at the start of your next billing cycle. Contact support for mid-cycle upgrades if you need more RAM or cores immediately.",
   },
   {
-    q: "What does Enterprise pricing look like?",
-    a: "Our top reference build is 44 cores / 512 GB RAM (dual Xeon class) — typical for maximum HRC and preflop farm workloads. Managed pricing starts at $1,249/mo depending on hardware generation, storage, and support level. Contact us for an exact quote.",
+    q: "What does Omega pricing look like?",
+    a: "Omega is a custom OVH Public Cloud build — pick vCPU, RAM, and NVMe starting from $899/mo. Need something off-catalog? Contact us for a dedicated quote.",
   },
   {
     q: "Do you offer refunds?",

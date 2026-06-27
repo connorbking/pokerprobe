@@ -15,7 +15,7 @@ export async function GET() {
   if (hasSecretKey) {
     try {
       const stripe = getStripe();
-      const price = await stripe.prices.retrieve(STRIPE_PRICE_IDS.starter);
+      const price = await stripe.prices.retrieve(STRIPE_PRICE_IDS.hobby);
       secretKeyWorks = true;
       priceLookupOk = price.active === true;
     } catch (err) {

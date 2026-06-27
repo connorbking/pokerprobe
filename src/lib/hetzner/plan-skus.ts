@@ -1,56 +1,67 @@
 /**
- * Hetzner CCX dedicated vCPU mapping for PokerProbe tiers.
- * Server-side only — do not import from client components.
+ * @deprecated Hetzner is tabled — OVH flavor mapping lives in `@/lib/plans`.
  */
+import {
+  fixedPlans,
+  getOmegaBuildFlavor,
+  getPlanById,
+  normalizePlanId,
+  type PlanId,
+} from "@/lib/plans";
 
-export type PokerProbePlanId = "starter" | "pro" | "elite";
+export type PokerProbePlanId = PlanId;
 
 export interface HetznerPlanSku {
-  planId: PokerProbePlanId;
+  planId: string;
+  /** OVH Public Cloud flavor name (legacy field name retained for deploy module) */
   hetznerSku: string;
   vcpu: number;
   ramGb: number;
-  storageGb: number;
-  /** Your all-in monthly infrastructure cost (USD) */
+  solverCacheGb: number;
   costUsd: number;
 }
 
-export const hetznerPlanSkus: Record<PokerProbePlanId, HetznerPlanSku> = {
-  starter: {
-    planId: "starter",
-    hetznerSku: "CCX33",
-    vcpu: 8,
-    ramGb: 32,
-    storageGb: 240,
-    costUsd: 165.99,
-  },
-  pro: {
-    planId: "pro",
-    hetznerSku: "CCX43",
-    vcpu: 16,
-    ramGb: 64,
-    storageGb: 360,
-    costUsd: 329.49,
-  },
-  elite: {
-    planId: "elite",
-    hetznerSku: "CCX53",
-    vcpu: 32,
-    ramGb: 128,
-    storageGb: 600,
-    costUsd: 635.49,
-  },
-};
+function planToSku(plan: (typeof fixedPlans)[number]): HetznerPlanSku {
+  return {
+    planId: plan.id,
+    hetznerSku: plan.ovhFlavor,
+    vcpu: plan.vcpu,
+    ramGb: plan.ramGb,
+    solverCacheGb: plan.solverCacheGb,
+    costUsd: plan.price,
+  };
+}
 
-/** Optional upsell tier — not a public plan; for Farm+ or Enterprise cloud path */
-export const hetznerFarmPlusSku = {
-  hetznerSku: "CCX63",
-  vcpu: 48,
-  ramGb: 192,
-  storageGb: 960,
-  costUsd: 1014.49,
-} as const;
+export const hetznerPlanSkus: Record<string, HetznerPlanSku> = Object.fromEntries(
+  fixedPlans.map((plan) => [plan.id, planToSku(plan)])
+);
+
+/** @deprecated Use omegaPlan from `@/lib/plans` */
+export const hetznerFarmPlusSku = hetznerPlanSkus.deepstack;
 
 export function getHetznerSkuForPlan(planId: string): HetznerPlanSku | null {
-  return hetznerPlanSkus[planId as PokerProbePlanId] ?? null;
+  const normalized = normalizePlanId(planId);
+  if (!normalized) return null;
+
+  const fixed = fixedPlans.find((p) => p.id === normalized);
+  if (fixed) return planToSku(fixed);
+
+  return null;
 }
+
+export function getHetznerSkuForCustomBuild(
+  flavorId: string
+): HetznerPlanSku | null {
+  const flavor = getOmegaBuildFlavor(flavorId);
+  if (!flavor) return null;
+  return {
+    planId: "omega",
+    hetznerSku: flavor.ovhFlavor,
+    vcpu: flavor.vcpu,
+    ramGb: flavor.ramGb,
+    solverCacheGb: flavor.solverCacheGb,
+    costUsd: flavor.price,
+  };
+}
+
+export { getPlanById, getOvhFlavorForPlan } from "@/lib/plans";
